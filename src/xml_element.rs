@@ -6,6 +6,7 @@ pub trait XMLElement{
     fn get_element(&self,name:&str) -> Result<&Element,Error>;
     fn get_text(&self) -> Result<&String,Error>;
     fn parse_text_as_f32(&self,name:&str) -> Result<f32,Error>;
+    fn parse_attribute_as_usize(&self,name:&str) -> Result<usize,Error>;
 }
 
 impl XMLElement for Element{
@@ -22,7 +23,7 @@ impl XMLElement for Element{
     }
 
     fn get_element(&self,name:&str) -> Result<&Element,Error>{
-        match self.get_child(name){
+        match self.get_child(name){ //TODO:multiple??
             Some(element) => Ok(element),
             None => Err(
                 Error::NoElement{
@@ -46,8 +47,15 @@ impl XMLElement for Element{
 
     fn parse_text_as_f32(&self,name:&str) -> Result<f32,Error>{
         match self.get_element(name)?.get_text()?.parse::<f32>(){
-            Ok(r) => Ok(r),
+            Ok(v) => Ok(v),
             Err(e) => Err(Error::StringParseError( format!("Can not parse {} as f32",name) )),
+        }
+    }
+
+    fn parse_attribute_as_usize(&self,name:&str) -> Result<usize,Error>{
+        match self.get_attribute(name)?.parse::<usize>(){
+            Ok(v) => Ok(v),
+            Err(e) => Err(Error::StringParseError( format!("Can not parse {} as usize",name) )),
         }
     }
 }

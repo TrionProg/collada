@@ -21,7 +21,11 @@ impl Geometry{
         let mut meshes=Vec::new();
 
         for mesh_element in geometry.children.iter(){
-            let mesh=Mesh::parse(&mesh_element)?;
+            if mesh_element.name.as_str()=="mesh" {
+                let mesh=Mesh::parse(&mesh_element)?;
+
+                meshes.push(mesh);
+            }
         }
 
         println!("{}",&id);
@@ -41,11 +45,13 @@ pub fn parse_geometries(root:&Element) -> Result<HashMap<String,Geometry>, Error
     let mut geometries=HashMap::new();
 
     for geometry_element in geometries_element.children.iter(){
-        let geometry=Geometry::parse(&geometry_element)?;
+        if geometry_element.name.as_str()=="geometry" {
+            let geometry=Geometry::parse(&geometry_element)?;
 
-        match geometries.entry(geometry.id.clone()){
-            Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate geometry with id \"{}\"", &geometry.id) )),
-            Entry::Vacant(entry) => {entry.insert(geometry);},
+            match geometries.entry(geometry.id.clone()){
+                Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate geometry with id \"{}\"", &geometry.id) )),
+                Entry::Vacant(entry) => {entry.insert(geometry);},
+            }
         }
     }
 
