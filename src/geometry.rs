@@ -4,6 +4,7 @@ use xmltree::Element;
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::rc::Rc;
 
 use Mesh;
 
@@ -36,7 +37,7 @@ impl Geometry{
     }
 }
 
-pub fn parse_geometries(root:&Element) -> Result<HashMap<String,Geometry>, Error>{
+pub fn parse_geometries(root:&Element) -> Result< HashMap<String,Rc<Geometry>>, Error>{
     let geometries_element=root.get_element("library_geometries")?;
     let mut geometries=HashMap::new();
 
@@ -46,7 +47,7 @@ pub fn parse_geometries(root:&Element) -> Result<HashMap<String,Geometry>, Error
 
             match geometries.entry(geometry.id.clone()){
                 Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate geometry with id \"{}\"", &geometry.id) )),
-                Entry::Vacant(entry) => {entry.insert(geometry);},
+                Entry::Vacant(entry) => { entry.insert(Rc::new(geometry)); },
             }
         }
     }

@@ -128,29 +128,29 @@ impl Source{
         }
 
         //read layer
-        let mut sourceDataIndex=0;
+        let mut source_data_index=0;
         for v in float_array_data.split(' ').filter(|v|*v!="").take(accessor_count*accessor_stride){
-            let layer=&mut layers[sourceDataIndex];
+            let layer=&mut layers[source_data_index];
 
             match layer.data {
                 SourceLayerData::Float( ref mut list) => {
                     match v.parse::<f32>(){
                         Ok ( f ) => list.push( f ),
-                        Err( e ) => return Err(Error::Other( format!("Can not parse mesh data {} as float", v) )),
+                        Err( _ ) => return Err(Error::Other( format!("Can not parse mesh data {} as float", v) )),
                     }
                 },
                 SourceLayerData::Integer( ref mut list) => {
                     match v.parse::<i32>(){
                         Ok ( f ) => list.push( f ),
-                        Err( e ) => return Err(Error::Other( format!("Can not parse mesh data {} as integer", v) )),
+                        Err( _ ) => return Err(Error::Other( format!("Can not parse mesh data {} as integer", v) )),
                     }
                 },
             }
 
-            sourceDataIndex+=1;
+            source_data_index+=1;
 
-            if sourceDataIndex==accessor_stride {
-                sourceDataIndex=0;
+            if source_data_index==accessor_stride {
+                source_data_index=0;
             }
         }
 

@@ -195,19 +195,19 @@ impl Mesh{
             source_data_indexes.push(Vec::with_capacity(vertices_count));
         }
 
-        let mut sourceDataIndex=0;
-        for source_data_index in source_data_indexes_per_vertex.split(' ').filter(|c|*c!="").take(vertices_count*sources_count) {
-            let sdi=match source_data_index.parse::<usize>(){
+        let mut source_data_index=0;
+        for data_index_per_vertex in source_data_indexes_per_vertex.split(' ').filter(|c|*c!="").take(vertices_count*sources_count) {
+            let dipv=match data_index_per_vertex.parse::<usize>(){
                 Ok ( c ) => c,
-                Err( _ ) => return Err(Error::Other( format!("source data index per vertex {} as usize", source_data_index) )),
+                Err( _ ) => return Err(Error::Other( format!("source data index per vertex {} as usize", data_index_per_vertex) )),
             };
 
-            source_data_indexes[sourceDataIndex].push(sdi);
+            source_data_indexes[source_data_index].push(dipv);
 
-            sourceDataIndex+=1;
+            source_data_index+=1;
 
-            if sourceDataIndex==sources_count {
-                sourceDataIndex=0;
+            if source_data_index==sources_count {
+                source_data_index=0;
             }
         }
 

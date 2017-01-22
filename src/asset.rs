@@ -3,8 +3,8 @@ use XMLElement;
 use xmltree::Element;
 
 pub struct Unit{
-    name:String,
-    ratio:f32,
+    pub name:String,
+    pub ratio:f32,
 }
 
 pub enum Axis{
@@ -34,8 +34,8 @@ impl Asset{
                 let ratio_str=asset.get_element("unit")?.get_attribute("meter")?;
 
                 match ratio_str.parse::<f32>(){
-                    Ok(r) => r,
-                    Err(e) => return Err(Error::StringParseError( String::from("Can not parse meter ratio as f32") )),
+                    Ok ( r ) => r,
+                    Err( _ ) => return Err(Error::StringParseError( String::from("Can not parse meter ratio as f32") )),
                 }
             },
             _ => return Err(Error::Other( format!("Asset/Unit: Expected meter unit, found {}", unit_name.as_str()) )),

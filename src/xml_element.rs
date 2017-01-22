@@ -15,8 +15,8 @@ impl XMLElement for Element{
             Some(attr) => Ok(attr),
             None => Err(
                 Error::NoAttribute{
-                    elementName:self.name.clone(),
-                    attribName:String::from(name),
+                    element_name:self.name.clone(),
+                    attrib_name:String::from(name),
                 }
             ),
         }
@@ -27,8 +27,8 @@ impl XMLElement for Element{
             Some(element) => Ok(element),
             None => Err(
                 Error::NoElement{
-                    elementName:self.name.clone(),
-                    childElementName:String::from(name),
+                    element_name:self.name.clone(),
+                    child_element_name:String::from(name),
                 }
             ),
         }
@@ -39,7 +39,7 @@ impl XMLElement for Element{
             Some(ref text) => Ok(text),
             None => Err(
                 Error::NoText{
-                    elementName:self.name.clone(),
+                    element_name:self.name.clone(),
                 }
             ),
         }
@@ -48,14 +48,14 @@ impl XMLElement for Element{
     fn parse_text_as_f32(&self,name:&str) -> Result<f32,Error>{
         match self.get_element(name)?.get_text()?.parse::<f32>(){
             Ok(v) => Ok(v),
-            Err(e) => Err(Error::StringParseError( format!("Can not parse {} as f32",name) )),
+            Err(_) => Err(Error::StringParseError( format!("Can not parse {} as f32",name) )),
         }
     }
 
     fn parse_attribute_as_usize(&self,name:&str) -> Result<usize,Error>{
         match self.get_attribute(name)?.parse::<usize>(){
             Ok(v) => Ok(v),
-            Err(e) => Err(Error::StringParseError( format!("Can not parse {} as usize",name) )),
+            Err(_) => Err(Error::StringParseError( format!("Can not parse {} as usize",name) )),
         }
     }
 }

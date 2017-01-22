@@ -4,6 +4,8 @@ use xmltree::Element;
 
 use Asset;
 use Camera;
+use Geometry;
+use Scene;
 
 use std::path::Path;
 
@@ -12,13 +14,17 @@ use std::io::BufReader;
 use std::fs::File;
 
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use camera::parse_cameras;
 use geometry::parse_geometries;
 use scene::parse_scenes;
 
 pub struct Document{
-
+    pub asset:Asset,
+    pub cameras:HashMap<String,Rc<Camera>>,
+    pub geometries:HashMap<String,Rc<Geometry>>,
+    pub scenes:HashMap<String,Rc<Scene>>,
 }
 
 impl Document{
@@ -28,9 +34,9 @@ impl Document{
             Err(e) => return Err(Error::FileError(e)),
         };
 
-        let mut reader = BufReader::new(file);
+        let reader = BufReader::new(file);
 
-        let mut root = match Element::parse(reader){
+        let root = match Element::parse(reader){
             Ok(r) => r,
             Err(e) => return Err(Error::ParseError(e)),
         };
@@ -39,17 +45,21 @@ impl Document{
             println!("{}",e.name);
         }
 
-        for (n,a) in root.attributes.iter(){
-            println!("{} {}",n,a);
-        }
-
         //let version=root.get_attribute("version")?;
         let asset=Asset::parse(&root)?;
 
         let cameras=parse_cameras(&root)?;
         let geometries=parse_geometries(&root)?;
-        let scenes=parse_scenes(&root)?;
 
-        Ok(Document{})
+        let mut document=Document{
+            asset:asset,
+            cameras:cameras,
+            geometries:geometries,
+            scenes:HashMap::new(),
+        };
+
+        parse_scenes(&root, &mut document)?;
+
+        Ok(document)
     }
 }
