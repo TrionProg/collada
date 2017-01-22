@@ -15,37 +15,46 @@ pub struct Polygon{
 }
 
 pub struct Mesh{
-    short_semantics:String,
-    full_semantics:String,
-    sources:Vec<(String,Rc<Source>)>,
-    polygons:Vec<Polygon>,
-    vertices:Vec<Vec<usize>>,
+    pub material:Option<String>,
+    pub short_semantics:String,
+    pub full_semantics:String,
+    pub sources:Vec<(String,Rc<Source>)>,
+    pub polygons:Vec<Polygon>,
+    pub vertices:Vec<Vec<usize>>,
 }
 
-//TODO полилистов несколько. у каждого свои полигоны и вершины, а select sources должен быть отдельный для каждого самантика тоже разная. по сути разные меши выйдут. и правильно, что сорсы Rc
-
 impl Mesh{
-    pub fn parse(mesh:&Element) -> Result<Mesh,Error>{
-        let polylist=mesh.get_element("polylist")?;
+    pub fn parse_meshes(mesh:&Element, meshes:&mut Vec<Mesh>) -> Result<(),Error>{
+        let all_sources=Mesh::read_sources(mesh)?;
 
-        let (sources, short_semantics, full_semantics)=Mesh::select_sources_and_generate_semantics(&polylist,
-            Mesh::read_sources(mesh)?
-        )?;
+        let mut meshes=Vec::new();
 
-        let (polygons,vertices_count)=Mesh::read_polygons(&polylist)?;
-        let vertices=Mesh::read_vertices(&polylist, vertices_count, sources.len())?;
+        for polylist in mesh.children.iter(){
+            if polylist.name.as_str()=="polylist"{
+                let material=match polylist.attributes.get("material"){
+                    Some(m) => Some(m.clone()),
+                    None => None,
+                };
 
-        println!("{} {} {}",polygons.len(),polygons[0].vertices_count,&full_semantics);
+                let (sources, short_semantics, full_semantics)=Mesh::select_sources_and_generate_semantics(&polylist, &all_sources)?;
 
-        Ok(
-            Mesh{
-                short_semantics:short_semantics,
-                full_semantics:full_semantics,
-                sources:sources,
-                polygons:polygons,
-                vertices:vertices,
+                let (polygons,vertices_count)=Mesh::read_polygons(&polylist)?;
+                let vertices=Mesh::read_vertices(&polylist, vertices_count, sources.len())?;
+
+                meshes.push(
+                    Mesh{
+                        material:material,
+                        short_semantics:short_semantics,
+                        full_semantics:full_semantics,
+                        sources:sources,
+                        polygons:polygons,
+                        vertices:vertices,
+                    }
+                );
             }
-        )
+        }
+
+        Ok(())
     }
 
     pub fn read_sources(mesh:&Element) -> Result<HashMap<String,Rc<Source>>,Error>{
@@ -88,8 +97,8 @@ impl Mesh{
         Ok(sources)
     }
 
-    pub fn select_sources_and_generate_semantics(polylist:&Element, sources:HashMap<String,Rc<Source>>) -> Result<(Vec<(String,Rc<Source>)>,String,String),Error>{
-        let poly_count=polylist.parse_attribute_as_usize("count")?;
+    pub fn select_sources_and_generate_semantics(polylist:&Element, sources:&HashMap<String,Rc<Source>>) -> Result<(Vec<(String,Rc<Source>)>,String,String),Error>{
+        //let poly_count=polylist.parse_attribute_as_usize("count")?;
 
         let mut poly_sources=Vec::new();
         let mut full_semantics=String::new();
@@ -157,7 +166,7 @@ impl Mesh{
         for vertices_per_poly_count in polygons_vcount.split(' ').filter(|c|*c!="").take(poly_count) {
             let vppc=match vertices_per_poly_count.parse::<usize>(){
                 Ok ( c ) => c,
-                Err( e ) => return Err(Error::Other( format!("Vertices per polygon {} as usize", vertices_per_poly_count) )),
+                Err( _ ) => return Err(Error::Other( format!("Vertices per polygon {} as usize", vertices_per_poly_count) )),
             };
 
             polygons.push(
@@ -182,7 +191,7 @@ impl Mesh{
 
         let mut source_data_indexes=Vec::with_capacity(sources_count);
 
-        for i in 0..sources_count{
+        for _ in 0..sources_count{
             source_data_indexes.push(Vec::with_capacity(vertices_count));
         }
 
@@ -190,7 +199,7 @@ impl Mesh{
         for source_data_index in source_data_indexes_per_vertex.split(' ').filter(|c|*c!="").take(vertices_count*sources_count) {
             let sdi=match source_data_index.parse::<usize>(){
                 Ok ( c ) => c,
-                Err( e ) => return Err(Error::Other( format!("source data index per vertex {} as usize", source_data_index) )),
+                Err( _ ) => return Err(Error::Other( format!("source data index per vertex {} as usize", source_data_index) )),
             };
 
             source_data_indexes[sourceDataIndex].push(sdi);

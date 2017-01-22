@@ -8,9 +8,9 @@ use std::collections::hash_map::Entry;
 use Mesh;
 
 pub struct Geometry{
-    id:String,
-    name:String,
-    meshes:Vec<Mesh>,
+    pub id:String,
+    pub name:String,
+    pub meshes:Vec<Mesh>,
 }
 
 impl Geometry{
@@ -22,13 +22,9 @@ impl Geometry{
 
         for mesh_element in geometry.children.iter(){
             if mesh_element.name.as_str()=="mesh" {
-                let mesh=Mesh::parse(&mesh_element)?;
-
-                meshes.push(mesh);
+                Mesh::parse_meshes(&mesh_element, &mut meshes)?;
             }
         }
-
-        println!("{}",&id);
 
         Ok(
             Geometry{

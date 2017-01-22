@@ -14,10 +14,10 @@ pub enum Axis{
 }
 
 pub struct Asset{
-    created:String,
-    modified:String,
-    unit:Unit,
-    up_axis:Axis,
+    pub created:String,
+    pub modified:String,
+    pub unit:Unit,
+    pub up_axis:Axis,
 }
 
 impl Asset{

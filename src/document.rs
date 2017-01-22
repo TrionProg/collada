@@ -15,6 +15,7 @@ use std::collections::HashMap;
 
 use camera::parse_cameras;
 use geometry::parse_geometries;
+use scene::parse_scenes;
 
 pub struct Document{
 
@@ -47,6 +48,7 @@ impl Document{
 
         let cameras=parse_cameras(&root)?;
         let geometries=parse_geometries(&root)?;
+        let scenes=parse_scenes(&root)?;
 
         Ok(Document{})
     }

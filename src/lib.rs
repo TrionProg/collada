@@ -26,3 +26,9 @@ pub use mesh::Mesh;
 
 mod geometry;
 pub use geometry::Geometry;
+
+mod node;
+pub use node::Node;
+
+mod scene;
+pub use scene::Scene;

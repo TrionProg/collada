@@ -9,6 +9,9 @@ pub enum LayerType{
     Z,
     U,
     V,
+    R,
+    G,
+    B,
 }
 
 impl LayerType{
@@ -19,6 +22,9 @@ impl LayerType{
             LayerType::Z => "Z",
             LayerType::U => "U",
             LayerType::V => "V",
+            LayerType::R => "R",
+            LayerType::G => "G",
+            LayerType::B => "B",
         }
     }
 }
@@ -65,6 +71,7 @@ impl Source{
         let accessor_count=accessor.parse_attribute_as_usize("count")?;
         let accessor_stride=accessor.parse_attribute_as_usize("stride")?;
 
+        //read information about layers
         let mut params=Vec::with_capacity(4);
 
         for param_element in accessor.children.iter(){
@@ -76,7 +83,10 @@ impl Source{
                     "Z" => LayerType::Z,
                     "S" => LayerType::U,
                     "T" => LayerType::V,
-                    _ => return Err(Error::Other( format!("Expected X, Y, Z, S or T, but {} has been found",param_name_str) )),
+                    "R" => LayerType::R,
+                    "G" => LayerType::G,
+                    "B" => LayerType::B,
+                    _ => return Err(Error::Other( format!("Expected X, Y, Z, S, T, R, G or B but {} has been found",param_name_str) )),
                 };
 
                 let param_data_type_str=param_element.get_attribute("type")?.as_str();
@@ -87,6 +97,10 @@ impl Source{
 
                 params.push((param_name, param_type));
             }
+        }
+
+        if params.len()==0 {
+            return Err(Error::Other( format!("Source \"{}\" is empty", &id) ));
         }
 
         if accessor_stride!=params.len(){
@@ -101,8 +115,8 @@ impl Source{
 
         for &(layer_type,data_type) in params.iter(){
             let data=match data_type{
-                DataType::Float => SourceLayerData::Float( Vec::with_capacity(accessor_count/accessor_stride) ),
-                DataType::Integer => SourceLayerData::Integer( Vec::with_capacity(accessor_count/accessor_stride) ),
+                DataType::Float => SourceLayerData::Float( Vec::with_capacity(accessor_count) ),
+                DataType::Integer => SourceLayerData::Integer( Vec::with_capacity(accessor_count) ),
             };
 
             let layer=SourceLayer{
@@ -113,8 +127,9 @@ impl Source{
             layers.push(layer);
         }
 
+        //read layer
         let mut sourceDataIndex=0;
-        for v in float_array_data.split(' ').filter(|v|*v!="").take(accessor_count){
+        for v in float_array_data.split(' ').filter(|v|*v!="").take(accessor_count*accessor_stride){
             let layer=&mut layers[sourceDataIndex];
 
             match layer.data {
@@ -139,8 +154,16 @@ impl Source{
             }
         }
 
-        if layers.len()==0 {
-            return Err(Error::Other( format!("Source \"{}\" is empty", &id) ));
+        //check
+        for layer in layers.iter(){
+            let count=match layer.data{
+                SourceLayerData::Float(ref list) => list.len(),
+                SourceLayerData::Integer(ref list) => list.len(),
+            };
+
+            if count!=accessor_count{
+                return Err(Error::Other( format!("Expected count {}, but {} has been read", accessor_count, count) ));
+            }
         }
 
         Ok(

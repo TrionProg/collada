@@ -6,17 +6,17 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 
 pub struct Perspective{
-    z_near:f32,
-    z_far:f32,
-    x_fov:f32,
+    pub z_near:f32,
+    pub z_far:f32,
+    pub x_fov:f32,
 }
 
 //TODO <extra><technique profile="blender">
 
 pub struct Camera{
-    id:String,
-    name:String,
-    perspective:Perspective,
+    pub id:String,
+    pub name:String,
+    pub perspective:Perspective,
 }
 
 impl Camera{
