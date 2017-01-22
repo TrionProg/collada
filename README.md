@@ -26,7 +26,7 @@ Example
 
 For example we want to get Y coordinate of second vertex of Polygon 3 of object named "body". Then we should write:
 
-```
+```rust
 let document=match collada::Document::parse(&Path::new("a2.dae")){
     Ok(d) => d,
     Err(e) => panic!("{}",e),
