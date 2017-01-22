@@ -3,8 +3,10 @@ extern crate collada;
 use std::path::Path;
 
 fn main(){
-    match collada::Document::parse(&Path::new("a1.dae")){
-        Ok(_) => {},
-        Err(e) => println!("{}",e),
+    let document=match collada::Document::parse(&Path::new("a2.dae")){
+        Ok(d) => d,
+        Err(e) => {println!("{}",e); return; },
     };
+
+    document.print_tree();
 }

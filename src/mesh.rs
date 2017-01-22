@@ -2,10 +2,9 @@ use Error;
 use XMLElement;
 use xmltree::Element;
 
-use std::rc::Rc;
-
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::rc::Rc;
 
 use Source;
 
@@ -23,11 +22,11 @@ pub struct Mesh{
     pub vertices:Vec<Vec<usize>>,
 }
 
+//TODO:Material shoild be Rc
+
 impl Mesh{
     pub fn parse_meshes(mesh:&Element, meshes:&mut Vec<Mesh>) -> Result<(),Error>{
         let all_sources=Mesh::read_sources(mesh)?;
-
-        let mut meshes=Vec::new();
 
         for polylist in mesh.children.iter(){
             if polylist.name.as_str()=="polylist"{
@@ -218,5 +217,48 @@ impl Mesh{
         }
 
         Ok(source_data_indexes)
+    }
+
+    pub fn print_tree(&self, last_geometry:bool, last_mesh:bool){
+        use print_branch;
+        use print_tab;
+
+        print_tab(false);
+        print_tab(last_geometry);
+        print_branch(last_mesh);
+
+        match self.material{
+            Some(ref material) => {
+                println!("Mesh material:\"{}\"", material);
+            },
+            None => {
+                println!("Mesh no material");
+            },
+        }
+
+        print_tab(false);
+        print_tab(last_geometry);
+        print_tab(last_mesh);
+        print_branch(false);
+        println!("Short semantics: {}",self.short_semantics);
+
+        /*
+        print_tab(false);
+        print_tab(last_geometry);
+        print_tab(last_mesh);
+        print_branch(false);
+        println!("full semantics: {}",self.full_semantics);
+        */
+
+        if self.sources.len()>1 {
+            for &(_,ref source) in self.sources.iter().take(self.sources.len()-1){
+                source.print_tree(last_geometry,last_mesh,false);
+            }
+        }
+
+        match self.sources.iter().last(){
+            Some(&(_,ref source)) => source.print_tree(last_geometry,last_mesh,true),
+            None => {},
+        }
     }
 }

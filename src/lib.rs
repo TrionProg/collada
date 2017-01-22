@@ -32,3 +32,19 @@ pub use node::Node;
 
 mod scene;
 pub use scene::Scene;
+
+pub fn print_branch(last:bool) {
+    if last {
+        print!("└── ");
+    }else{
+        print!("├── ");
+    }
+}
+
+pub fn print_tab(last:bool){
+    if last {
+        print!("    ");
+    }else{
+        print!("│   ");
+    }
+}

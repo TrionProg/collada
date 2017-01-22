@@ -35,6 +35,26 @@ impl Geometry{
             }
         )
     }
+
+    pub fn print_tree(&self, last_geometry:bool){
+        use print_branch;
+        use print_tab;
+
+        print_tab(false);
+        print_branch(last_geometry);
+        println!("Geometry id:\"{}\" name:\"{}\"",self.id,self.name);
+
+        if self.meshes.len()>1 {
+            for mesh in self.meshes.iter().take(self.meshes.len()-1){
+                mesh.print_tree(last_geometry,false);
+            }
+        }
+
+        match self.meshes.iter().last(){
+            Some(mesh) => mesh.print_tree(last_geometry,true),
+            None => {},
+        }
+    }
 }
 
 pub fn parse_geometries(root:&Element) -> Result< HashMap<String,Rc<Geometry>>, Error>{

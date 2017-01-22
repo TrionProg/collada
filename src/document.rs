@@ -62,4 +62,39 @@ impl Document{
 
         Ok(document)
     }
+
+    pub fn print_tree(&self){
+        use print_branch;
+
+        println!("Document");
+
+        print_branch(false);
+        println!("Geometries");
+
+        if self.geometries.len()>1{
+            for (_,geometry) in self.geometries.iter().take(self.geometries.len()-1){
+                geometry.print_tree(false);
+            }
+        }
+
+        match self.geometries.iter().last(){
+            Some((_,geometry)) => geometry.print_tree(true),
+            None => {},
+        }
+
+        print_branch(true);
+        println!("Scenes");
+
+        if self.scenes.len()>1{
+            for (_,scene) in self.scenes.iter().take(self.scenes.len()-1){
+                scene.print_tree(false);
+            }
+        }
+
+        match self.scenes.iter().last(){
+            Some((_,scene)) => scene.print_tree(true),
+            None => {},
+        }
+    }
+
 }

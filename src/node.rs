@@ -88,4 +88,20 @@ impl Node{
             child_element_name:String::from("instance"),
         })
     }
+
+    pub fn print_tree(&self, last_scene:bool, last_node:bool){
+        use print_branch;
+        use print_tab;
+
+        print_tab(true);
+        print_tab(last_scene);
+        print_branch(last_node);
+
+        let joined=match self.joined{
+            JoinedTo::Geometry( ref geometry ) => format!("Geometry with id:\"{}\"", geometry.id),
+            JoinedTo::Camera( ref camera ) => format!("Camera with id:\"{}\"", camera.id),
+        };
+
+        println!("Source id:\"{}\" name:\"{}\" joided to {}",self.id,self.name,joined);
+    }
 }

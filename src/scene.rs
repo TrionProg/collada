@@ -38,6 +38,26 @@ impl Scene{
             }
         )
     }
+
+    pub fn print_tree(&self, last_scene:bool){
+        use print_branch;
+        use print_tab;
+
+        print_tab(true);
+        print_branch(last_scene);
+        println!("Source id:\"{}\" name:\"{}\"",self.id,self.name);
+
+        if self.nodes.len()>1 {
+            for node in self.nodes.iter().take(self.nodes.len()-1){
+                node.print_tree(last_scene,false);
+            }
+        }
+
+        match self.nodes.iter().last(){
+            Some(node) => node.print_tree(last_scene,true),
+            None => {},
+        }
+    }
 }
 
 pub fn parse_scenes(root:&Element, document:&mut Document) -> Result<(), Error>{
