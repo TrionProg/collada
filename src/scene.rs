@@ -6,34 +6,32 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::rc::Rc;
 
+use node::parse_node;
+
 use Node;
 use Document;
+
+use Camera;
+use Geometry;
 
 pub struct Scene{
     pub id:String,
     pub name:String,
-    pub nodes:HashMap<String,Node>,
+    pub geometries:HashMap<String,Node<Geometry>>,
+    pub cameras:HashMap<String,Node<Camera>>,
 }
-
-//TODO: Store cameras, geoms, light in separate hash maps
 
 impl Scene{
     pub fn parse(scene:&Element, document:&mut Document) -> Result<Scene,Error>{
         let id=scene.get_attribute("id")?.clone();
         let name=scene.get_attribute("name")?.clone();
 
-        let mut nodes=HashMap::new();
+        let mut geometries=HashMap::new();
+        let mut cameras=HashMap::new();
 
         for node_element in scene.children.iter(){
             if node_element.name.as_str()=="node" {
-                let node=Node::parse(node_element, document)?;
-
-                match nodes.entry(node.name.clone()){
-                    Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate node with name \"{}\"",node.name) )),
-                    Entry::Vacant(entry) => {
-                        entry.insert( node );
-                    },
-                }
+                parse_node(node_element, document, &mut geometries, &mut cameras)?;
             }
         }
 
@@ -41,7 +39,8 @@ impl Scene{
             Scene{
                 id:id,
                 name:name,
-                nodes:nodes,
+                geometries:geometries,
+                cameras:cameras,
             }
         )
     }
@@ -52,16 +51,37 @@ impl Scene{
 
         print_tab(true);
         print_branch(last_scene);
-        println!("Source id:\"{}\" name:\"{}\"",self.id,self.name);
+        println!("Scene id:\"{}\" name:\"{}\"",self.id,self.name);
 
-        if self.nodes.len()>1 {
-            for (_,node) in self.nodes.iter().take(self.nodes.len()-1){
-                node.print_tree(last_scene,false);
+        print_tab(true);
+        print_tab(last_scene);
+        print_branch(false);
+        println!("Geometries");
+
+        if self.geometries.len()>1 {
+            for (_,geometry) in self.geometries.iter().take(self.geometries.len()-1){
+                geometry.print_tree(last_scene,false);
             }
         }
 
-        match self.nodes.iter().last(){
-            Some((_,node)) => node.print_tree(last_scene,true),
+        match self.geometries.iter().last(){
+            Some((_,geometry)) => geometry.print_tree(last_scene,true),
+            None => {},
+        }
+
+        print_tab(true);
+        print_tab(last_scene);
+        print_branch(true);
+        println!("Cameras");
+
+        if self.cameras.len()>1 {
+            for (_,camera) in self.cameras.iter().take(self.cameras.len()-1){
+                camera.print_tree(last_scene,false);
+            }
+        }
+
+        match self.cameras.iter().last(){
+            Some((_,camera)) => camera.print_tree(last_scene,true),
             None => {},
         }
     }

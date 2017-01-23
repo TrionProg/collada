@@ -11,11 +11,8 @@ fn main(){
     document.print_tree();
 
     let scene=document.scenes.get("Scene").unwrap();
-    let node=scene.nodes.get("body").unwrap();
-    let geometry=match node.joined{
-        collada::JoinedTo::Geometry(ref geometry) => geometry,
-        _ => panic!("we expect only geometry"),
-    };
+    let node=scene.geometries.get("body").unwrap();
+    let geometry=&node.joined;
     let mesh=&geometry.meshes[0];
     println!("{}",mesh.full_semantics);
     let polygon=&mesh.polygons[3];

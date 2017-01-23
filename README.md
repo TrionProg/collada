@@ -33,18 +33,15 @@ let document=match collada::Document::parse(&Path::new("a2.dae")){
 };
 
 let scene=document.scenes.get("Scene").unwrap();
-let node=scene.nodes.get("body").unwrap();
-let geometry=match node.joined{
-    collada::JoinedTo::Geometry(ref geometry) => geometry,
-    _ => panic!("we expect only geometry"),
-};
+let node=scene.geometries.get("body").unwrap();
+let geometry=&node.joined;
 let mesh=&geometry.meshes[0];
 println!("{}",mesh.full_semantics);
 let polygon=&mesh.polygons[3];
 let position=mesh.vertex_layers.get("VERTEX").unwrap();
-let y_source_layer=&position.source.layers[1];//xyz, y has index 1
-let source_data=match y_source_layer.data {
-    collada::SourceLayerData::Float(ref data) => data,
+let y_source_layer=position.source.layers.get("Y").unwrap();
+let source_data=match *y_source_layer {
+    collada::SourceLayer::Float(ref data) => data,
     _ => panic!("we expect only float"),
 };
 let vertex_index=polygon.first_vertex_index+1;
@@ -61,50 +58,52 @@ Document
 ├── Geometries
 │   ├── Geometry id:"Cylinder_007-mesh" name:"Cylinder.007"
 │   │   └── Mesh material:"tex2-material"
-│   │       ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(U,V)
+│   │       ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(V,U)
 │   │       └── Vertex
-│   │           ├── Layer "TEXCOORD" source id:"Cylinder_007-mesh-map-0"
 │   │           ├── Layer "NORMAL" source id:"Cylinder_007-mesh-normals"
+│   │           ├── Layer "TEXCOORD" source id:"Cylinder_007-mesh-map-0"
 │   │           └── Layer "VERTEX" source id:"Cylinder_007-mesh-positions"
-│   ├── Geometry id:"Cylinder_004-mesh" name:"Cylinder.004"
-│   │   └── Mesh material:"Material-material"
-│   │       ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(U,V)
+│   ├── Geometry id:"Cylinder_008-mesh" name:"Cylinder.008"
+│   │   └── Mesh material:"Material_001-material"
+│   │       ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(V,U)
 │   │       └── Vertex
-│   │           ├── Layer "TEXCOORD" source id:"Cylinder_004-mesh-map-0"
-│   │           ├── Layer "NORMAL" source id:"Cylinder_004-mesh-normals"
-│   │           └── Layer "VERTEX" source id:"Cylinder_004-mesh-positions"
+│   │           ├── Layer "NORMAL" source id:"Cylinder_008-mesh-normals"
+│   │           ├── Layer "TEXCOORD" source id:"Cylinder_008-mesh-map-0"
+│   │           └── Layer "VERTEX" source id:"Cylinder_008-mesh-positions"
 │   ├── Geometry id:"Cylinder_003-mesh" name:"Cylinder.003"
 │   │   ├── Mesh material:"tex1-material"
-│   │   │   ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(U,V) &(R,G,B)
+│   │   │   ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(V,U) &(G,R,B)
 │   │   │   └── Vertex
-│   │   │       ├── Layer "TEXCOORD" source id:"Cylinder_003-mesh-map-0"
 │   │   │       ├── Layer "COLOR" source id:"Cylinder_003-mesh-colors-Col"
 │   │   │       ├── Layer "NORMAL" source id:"Cylinder_003-mesh-normals"
+│   │   │       ├── Layer "TEXCOORD" source id:"Cylinder_003-mesh-map-0"
 │   │   │       └── Layer "VERTEX" source id:"Cylinder_003-mesh-positions"
 │   │   └── Mesh material:"tex2-material"
-│   │       ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(U,V) &(R,G,B)
+│   │       ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(V,U) &(G,R,B)
 │   │       └── Vertex
-│   │           ├── Layer "TEXCOORD" source id:"Cylinder_003-mesh-map-0"
 │   │           ├── Layer "COLOR" source id:"Cylinder_003-mesh-colors-Col"
 │   │           ├── Layer "NORMAL" source id:"Cylinder_003-mesh-normals"
+│   │           ├── Layer "TEXCOORD" source id:"Cylinder_003-mesh-map-0"
 │   │           └── Layer "VERTEX" source id:"Cylinder_003-mesh-positions"
-│   └── Geometry id:"Cylinder_008-mesh" name:"Cylinder.008"
-│       └── Mesh material:"Material_001-material"
-│           ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(U,V)
+│   └── Geometry id:"Cylinder_004-mesh" name:"Cylinder.004"
+│       └── Mesh material:"Material-material"
+│           ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(V,U)
 │           └── Vertex
-│               ├── Layer "TEXCOORD" source id:"Cylinder_008-mesh-map-0"
-│               ├── Layer "NORMAL" source id:"Cylinder_008-mesh-normals"
-│               └── Layer "VERTEX" source id:"Cylinder_008-mesh-positions"
+│               ├── Layer "NORMAL" source id:"Cylinder_004-mesh-normals"
+│               ├── Layer "TEXCOORD" source id:"Cylinder_004-mesh-map-0"
+│               └── Layer "VERTEX" source id:"Cylinder_004-mesh-positions"
 └── Scenes
-    └── Source id:"Scene" name:"Scene"
-        ├── Source id:"Cylinder_000" name:"Cylinder_000" joided to Geometry with id:"Cylinder_008-mesh"
-        ├── Source id:"WFR" name:"WFR" joided to Geometry with id:"Cylinder_007-mesh"
-        ├── Source id:"body" name:"body" joided to Geometry with id:"Cylinder_003-mesh"
-        ├── Source id:"Camera" name:"Camera" joided to Camera with id:"Camera-camera"
-        ├── Source id:"WFR_001" name:"WFR_001" joided to Geometry with id:"Cylinder_007-mesh"
-        ├── Source id:"WFR_002" name:"WFR_002" joided to Geometry with id:"Cylinder_007-mesh"
-        ├── Source id:"WFR_003" name:"WFR_003" joided to Geometry with id:"Cylinder_007-mesh"
-        └── Source id:"Cylinder_003" name:"Cylinder_003" joided to Geometry with id:"Cylinder_004-mesh"
+    └── Scene id:"Scene" name:"Scene"
+        ├── Geometries
+        │   ├── Node id:"WFR_002" name:"WFR_002" joided to "Cylinder_007-mesh"
+        │   ├── Node id:"body" name:"body" joided to "Cylinder_003-mesh"
+        │   ├── Node id:"Cylinder_003" name:"Cylinder_003" joided to "Cylinder_004-mesh"
+        │   ├── Node id:"WFR" name:"WFR" joided to "Cylinder_007-mesh"
+        │   ├── Node id:"WFR_003" name:"WFR_003" joided to "Cylinder_007-mesh"
+        │   ├── Node id:"WFR_001" name:"WFR_001" joided to "Cylinder_007-mesh"
+        │   └── Node id:"Cylinder_000" name:"Cylinder_000" joided to "Cylinder_008-mesh"
+        └── Cameras
+            └── Node id:"Camera" name:"Camera" joided to "Camera-camera"
 ```
 
 License

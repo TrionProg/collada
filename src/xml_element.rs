@@ -23,7 +23,19 @@ impl XMLElement for Element{
     }
 
     fn get_element(&self,name:&str) -> Result<&Element,Error>{
-        match self.get_child(name){ //TODO:multiple??
+        let mut found_element=None;
+
+        for element in self.children.iter(){
+            if element.name.as_str()==name {
+                if found_element.is_some() {
+                    return Err( Error::Other(format!("Element \"{}\" contains several elements \"{}\" but just one has been expected", &self.name, name)) );
+                }
+
+                found_element=Some(element);
+            }
+        }
+
+        match found_element{
             Some(element) => Ok(element),
             None => Err(
                 Error::NoElement{
