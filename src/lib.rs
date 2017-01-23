@@ -19,7 +19,7 @@ mod camera;
 pub use camera::Camera;
 
 mod source;
-pub use source::{Source,SourceLayer,SourceLayerData};
+pub use source::{Source,SourceLayer};
 
 mod mesh;
 pub use mesh::Mesh;

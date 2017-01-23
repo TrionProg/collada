@@ -2,6 +2,9 @@ use Error;
 use XMLElement;
 use xmltree::Element;
 
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
+
 #[derive(Copy, Clone)]
 pub enum LayerType{
     X,
@@ -35,31 +38,24 @@ pub enum DataType{
     Integer,
 }
 
-pub struct SourceLayer{
-    pub layer_type:LayerType,
-    pub data:SourceLayerData,
-}
-
-pub enum SourceLayerData{
+pub enum SourceLayer{
     Float(Vec<f32>),
     Integer(Vec<i32>),
 }
 
-impl SourceLayerData{
-    pub fn print_semantics(&self) -> &'static str{
+impl SourceLayer{
+    pub fn print_data_type(&self) -> &'static str{
         match *self{
-            SourceLayerData::Float(_) => "float",
-            SourceLayerData::Integer(_) => "integer",
+            SourceLayer::Float(_) => "float",
+            SourceLayer::Integer(_) => "integer",
         }
     }
 }
 
 pub struct Source{
     pub id:String,
-    pub layers:Vec<SourceLayer>,
+    pub layers:HashMap<String,SourceLayer>,
 }
-
-//TODO Source = SourceLayerData. id => hash map
 
 impl Source{
     pub fn parse(source:&Element) -> Result<Source,Error>{
@@ -113,35 +109,30 @@ impl Source{
             return Err(Error::Other( format!("count({})*stride({})!=float_array_count({})", accessor_count, accessor_stride, float_array_count) ));
         }
 
-        let mut layers=Vec::with_capacity(params.len());
+        let mut layers_data=Vec::with_capacity(params.len());
 
-        for &(layer_type,data_type) in params.iter(){
-            let data=match data_type{
-                DataType::Float => SourceLayerData::Float( Vec::with_capacity(accessor_count) ),
-                DataType::Integer => SourceLayerData::Integer( Vec::with_capacity(accessor_count) ),
+        for &(_,data_type) in params.iter(){
+            let layer_data=match data_type{
+                DataType::Float => SourceLayer::Float( Vec::with_capacity(accessor_count) ),
+                DataType::Integer => SourceLayer::Integer( Vec::with_capacity(accessor_count) ),
             };
 
-            let layer=SourceLayer{
-                layer_type:layer_type,
-                data:data,
-            };
-
-            layers.push(layer);
+            layers_data.push(layer_data);
         }
 
         //read layer
         let mut source_data_index=0;
         for v in float_array_data.split(' ').filter(|v|*v!="").take(accessor_count*accessor_stride){
-            let layer=&mut layers[source_data_index];
+            let layer_data=&mut layers_data[source_data_index];
 
-            match layer.data {
-                SourceLayerData::Float( ref mut list) => {
+            match *layer_data {
+                SourceLayer::Float( ref mut list) => {
                     match v.parse::<f32>(){
                         Ok ( f ) => list.push( f ),
                         Err( _ ) => return Err(Error::Other( format!("Can not parse mesh data {} as float", v) )),
                     }
                 },
-                SourceLayerData::Integer( ref mut list) => {
+                SourceLayer::Integer( ref mut list) => {
                     match v.parse::<i32>(){
                         Ok ( f ) => list.push( f ),
                         Err( _ ) => return Err(Error::Other( format!("Can not parse mesh data {} as integer", v) )),
@@ -157,14 +148,25 @@ impl Source{
         }
 
         //check
-        for layer in layers.iter(){
-            let count=match layer.data{
-                SourceLayerData::Float(ref list) => list.len(),
-                SourceLayerData::Integer(ref list) => list.len(),
+        for layer_data in layers_data.iter(){
+            let count=match *layer_data{
+                SourceLayer::Float(ref list) => list.len(),
+                SourceLayer::Integer(ref list) => list.len(),
             };
 
             if count!=accessor_count{
                 return Err(Error::Other( format!("Expected count {}, but {} has been read", accessor_count, count) ));
+            }
+        }
+
+        let mut layers=HashMap::new();
+
+        for &(layer_type,_) in params.iter().rev(){
+            match layers.entry( String::from(layer_type.print_semantics()) ){
+                Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate layer with semantics \"{}\"",layer_type.print_semantics()) )),
+                Entry::Vacant(entry) => {
+                    entry.insert( layers_data.pop().unwrap() );
+                },
             }
         }
 

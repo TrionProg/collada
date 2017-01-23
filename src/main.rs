@@ -5,7 +5,7 @@ use std::path::Path;
 fn main(){
     let document=match collada::Document::parse(&Path::new("a2.dae")){
         Ok(d) => d,
-        Err(e) => {println!("{}",e); return; },
+        Err(e) => panic!("{}",e),
     };
 
     document.print_tree();
@@ -20,11 +20,12 @@ fn main(){
     println!("{}",mesh.full_semantics);
     let polygon=&mesh.polygons[3];
     let position=mesh.vertex_layers.get("VERTEX").unwrap();
-    let y_source_layer=&position.source.layers[1];
-    let source_data=match y_source_layer.data {
-        collada::SourceLayerData::Float(ref data) => data,
+    let y_source_layer=position.source.layers.get("Y").unwrap();
+    let source_data=match *y_source_layer {
+        collada::SourceLayer::Float(ref data) => data,
         _ => panic!("we expect only float"),
     };
     let vertex_index=polygon.first_vertex_index+1;
     println!("Y coord is {}",source_data[position.indexes[vertex_index]]);
+
 }

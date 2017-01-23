@@ -125,18 +125,18 @@ impl Mesh{
                     let mut full_source_semantics=String::new();
                     let mut short_source_semantics=String::new();
 
-                    for source_layer in source.layers.iter().take(source.layers.len()-1){
-                        full_source_semantics.push_str( &format!("{}:{},",source_layer.layer_type.print_semantics(), source_layer.data.print_semantics()) );
-                        short_source_semantics.push_str( &format!("{},",source_layer.layer_type.print_semantics()) );
+                    for (layer_semantics,source_layer) in source.layers.iter().take(source.layers.len()-1){
+                        full_source_semantics.push_str( &format!("{}:{},",layer_semantics, source_layer.print_data_type()) );
+                        short_source_semantics.push_str( &format!("{},",layer_semantics) );
                     }
 
-                    let source_layer=match source.layers.iter().last(){
+                    let (layer_semantics,source_layer)=match source.layers.iter().last(){
                         Some(sl) => sl,
                         None => {unreachable!()},
                     };
 
-                    full_source_semantics.push_str( &format!("{}:{}",source_layer.layer_type.print_semantics(), source_layer.data.print_semantics()) );
-                    short_source_semantics.push_str( &format!("{}",source_layer.layer_type.print_semantics()) );
+                    full_source_semantics.push_str( &format!("{}:{}",layer_semantics, source_layer.print_data_type()) );
+                    short_source_semantics.push_str( &format!("{}",layer_semantics) );
 
                     (full_source_semantics,short_source_semantics)
                 };
