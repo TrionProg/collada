@@ -12,21 +12,28 @@ use Document;
 pub struct Scene{
     pub id:String,
     pub name:String,
-    pub nodes:Vec<Node>,
+    pub nodes:HashMap<String,Node>,
 }
+
+//TODO: Store cameras, geoms, light in separate hash maps
 
 impl Scene{
     pub fn parse(scene:&Element, document:&mut Document) -> Result<Scene,Error>{
         let id=scene.get_attribute("id")?.clone();
         let name=scene.get_attribute("name")?.clone();
 
-        let mut nodes=Vec::new();
+        let mut nodes=HashMap::new();
 
         for node_element in scene.children.iter(){
             if node_element.name.as_str()=="node" {
                 let node=Node::parse(node_element, document)?;
 
-                nodes.push(node);
+                match nodes.entry(node.name.clone()){
+                    Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate node with name \"{}\"",node.name) )),
+                    Entry::Vacant(entry) => {
+                        entry.insert( node );
+                    },
+                }
             }
         }
 
@@ -48,13 +55,13 @@ impl Scene{
         println!("Source id:\"{}\" name:\"{}\"",self.id,self.name);
 
         if self.nodes.len()>1 {
-            for node in self.nodes.iter().take(self.nodes.len()-1){
+            for (_,node) in self.nodes.iter().take(self.nodes.len()-1){
                 node.print_tree(last_scene,false);
             }
         }
 
         match self.nodes.iter().last(){
-            Some(node) => node.print_tree(last_scene,true),
+            Some((_,node)) => node.print_tree(last_scene,true),
             None => {},
         }
     }

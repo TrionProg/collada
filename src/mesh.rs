@@ -19,7 +19,12 @@ pub struct Mesh{
     pub full_semantics:String,
     pub sources:Vec<(String,Rc<Source>)>,
     pub polygons:Vec<Polygon>,
-    pub vertices:Vec<Vec<usize>>,
+    pub vertex_layers:HashMap<String,VertexLayer>,
+}
+
+pub struct VertexLayer{
+    pub source:Rc<Source>,
+    pub indexes:Vec<usize>,
 }
 
 //TODO:Material shoild be Rc
@@ -38,7 +43,7 @@ impl Mesh{
                 let (sources, short_semantics, full_semantics)=Mesh::select_sources_and_generate_semantics(&polylist, &all_sources)?;
 
                 let (polygons,vertices_count)=Mesh::read_polygons(&polylist)?;
-                let vertices=Mesh::read_vertices(&polylist, vertices_count, sources.len())?;
+                let vertex_layers=Mesh::read_vertices(&polylist, vertices_count, &sources)?;
 
                 meshes.push(
                     Mesh{
@@ -47,7 +52,7 @@ impl Mesh{
                         full_semantics:full_semantics,
                         sources:sources,
                         polygons:polygons,
-                        vertices:vertices,
+                        vertex_layers:vertex_layers,
                     }
                 );
             }
@@ -97,8 +102,6 @@ impl Mesh{
     }
 
     pub fn select_sources_and_generate_semantics(polylist:&Element, sources:&HashMap<String,Rc<Source>>) -> Result<(Vec<(String,Rc<Source>)>,String,String),Error>{
-        //let poly_count=polylist.parse_attribute_as_usize("count")?;
-
         let mut poly_sources=Vec::new();
         let mut full_semantics=String::new();
         let mut short_semantics=String::new();
@@ -185,13 +188,13 @@ impl Mesh{
         Ok((polygons,vertices_count))
     }
 
-    pub fn read_vertices(polylist:&Element, vertices_count:usize, sources_count:usize) -> Result<Vec<Vec<usize>>,Error>{//read vertices(<p> tag)
+    pub fn read_vertices(polylist:&Element, vertices_count:usize, sources:&Vec<(String,Rc<Source>)>) -> Result<HashMap<String,VertexLayer>,Error>{//read vertices(<p> tag)
+        let sources_count=sources.len();
         let source_data_indexes_per_vertex=polylist.get_element("p")?.get_text()?;
 
-        let mut source_data_indexes=Vec::with_capacity(sources_count);
-
-        for _ in 0..sources_count{
-            source_data_indexes.push(Vec::with_capacity(vertices_count));
+        let mut vertex_layers_indexes=Vec::with_capacity(sources_count);
+        for i in 0..sources_count{
+            vertex_layers_indexes.push(Vec::with_capacity(vertices_count));
         }
 
         let mut source_data_index=0;
@@ -201,7 +204,7 @@ impl Mesh{
                 Err( _ ) => return Err(Error::Other( format!("source data index per vertex {} as usize", data_index_per_vertex) )),
             };
 
-            source_data_indexes[source_data_index].push(dipv);
+            vertex_layers_indexes[source_data_index].push(dipv);
 
             source_data_index+=1;
 
@@ -210,13 +213,27 @@ impl Mesh{
             }
         }
 
-        for sdi in source_data_indexes.iter(){
-            if sdi.len()!=vertices_count {
-                return Err(Error::Other( format!("Expected {} vertices, but {} has been read", vertices_count, sdi.len()) ));
+        for vertex_layer_indexes in vertex_layers_indexes.iter(){
+            if vertex_layer_indexes.len()!=vertices_count {
+                return Err(Error::Other( format!("Expected {} indexes, but {} has been read", vertices_count, vertex_layer_indexes.len()) ));
             }
         }
 
-        Ok(source_data_indexes)
+        let mut vertex_layers=HashMap::new();
+
+        for &(ref vertex_layer_name, ref source) in sources.iter().rev(){
+            match vertex_layers.entry(vertex_layer_name.clone()){
+                Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate source with semantic \"{}\"",vertex_layer_name) )),
+                Entry::Vacant(entry) => {
+                    entry.insert( VertexLayer{
+                        source:source.clone(),
+                        indexes:vertex_layers_indexes.pop().unwrap(),
+                    });
+                },
+            }
+        }
+
+        Ok(vertex_layers)
     }
 
     pub fn print_tree(&self, last_geometry:bool, last_mesh:bool){
@@ -242,22 +259,32 @@ impl Mesh{
         print_branch(false);
         println!("Short semantics: {}",self.short_semantics);
 
-        /*
         print_tab(false);
         print_tab(last_geometry);
         print_tab(last_mesh);
-        print_branch(false);
-        println!("full semantics: {}",self.full_semantics);
-        */
+        print_branch(true);
+        println!("Vertex");
 
-        if self.sources.len()>1 {
-            for &(_,ref source) in self.sources.iter().take(self.sources.len()-1){
-                source.print_tree(last_geometry,last_mesh,false);
+        if self.vertex_layers.len()>1 {
+            for (ref vertex_layers_name,ref vertex_layer) in self.vertex_layers.iter().take(self.vertex_layers.len()-1){
+                print_tab(false);
+                print_tab(last_geometry);
+                print_tab(last_mesh);
+                print_tab(true);
+                print_branch(false);
+                println!("Layer \"{}\" source id:\"{}\"",vertex_layers_name,vertex_layer.source.id);
             }
         }
 
-        match self.sources.iter().last(){
-            Some(&(_,ref source)) => source.print_tree(last_geometry,last_mesh,true),
+        match self.vertex_layers.iter().last(){
+            Some((ref vertex_layers_name,ref vertex_layer)) => {
+                print_tab(false);
+                print_tab(last_geometry);
+                print_tab(last_mesh);
+                print_tab(true);
+                print_branch(true);
+                println!("Layer \"{}\" source id:\"{}\"",vertex_layers_name,vertex_layer.source.id);
+            }
             None => {},
         }
     }

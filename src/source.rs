@@ -59,6 +59,8 @@ pub struct Source{
     pub layers:Vec<SourceLayer>,
 }
 
+//TODO Source = SourceLayerData. id => hash map
+
 impl Source{
     pub fn parse(source:&Element) -> Result<Source,Error>{
         let id=source.get_attribute("id")?.clone();
@@ -172,18 +174,5 @@ impl Source{
                 layers:layers,
             }
         )
-    }
-
-    pub fn print_tree(&self, last_geometry:bool, last_mesh:bool, last_source:bool){
-        use print_branch;
-        use print_tab;
-
-        print_tab(false);
-        print_tab(last_geometry);
-        print_tab(last_mesh);
-        print_branch(last_source);
-        //print_tab(false);
-        //println!("short semantics: {}",self.short_semantics);
-        println!("Source id:\"{}\"",self.id);
     }
 }
