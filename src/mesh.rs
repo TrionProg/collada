@@ -121,35 +121,15 @@ impl Mesh{
                     None => return Err(Error::Other( format!("Source with id \"{}\" does not exists", source_id) )),
                 };
 
-                let (full_source_semantics,short_source_semantics)={
-                    let mut full_source_semantics=String::new();
-                    let mut short_source_semantics=String::new();
-
-                    for (layer_semantics,source_layer) in source.layers.iter().take(source.layers.len()-1){
-                        full_source_semantics.push_str( &format!("{}:{},",layer_semantics, source_layer.print_data_type()) );
-                        short_source_semantics.push_str( &format!("{},",layer_semantics) );
-                    }
-
-                    let (layer_semantics,source_layer)=match source.layers.iter().last(){
-                        Some(sl) => sl,
-                        None => {unreachable!()},
-                    };
-
-                    full_source_semantics.push_str( &format!("{}:{}",layer_semantics, source_layer.print_data_type()) );
-                    short_source_semantics.push_str( &format!("{}",layer_semantics) );
-
-                    (full_source_semantics,short_source_semantics)
-                };
-
                 if full_semantics.as_str()!=""{
                     full_semantics.push(' ');
                 }
-                full_semantics.push_str(&format!("{}:&({})",source_semantic,full_source_semantics));
+                full_semantics.push_str(&format!("{}:&({})",source_semantic,source.full_semantics));
 
                 if short_semantics.as_str()!=""{
                     short_semantics.push(' ');
                 }
-                short_semantics.push_str(&format!("&({})",short_source_semantics));
+                short_semantics.push_str(&format!("&({})",source.short_semantics));
 
                 poly_sources.push((source_semantic.clone(),source));
             }

@@ -38,6 +38,15 @@ pub enum DataType{
     Integer,
 }
 
+impl DataType{
+    pub fn print_data_type(&self) -> &'static str{
+        match *self{
+            DataType::Float => "float",
+            DataType::Integer => "integer",
+        }
+    }
+}
+
 pub enum SourceLayer{
     Float(Vec<f32>),
     Integer(Vec<i32>),
@@ -54,6 +63,8 @@ impl SourceLayer{
 
 pub struct Source{
     pub id:String,
+    pub short_semantics:String,
+    pub full_semantics:String,
     pub layers:HashMap<String,SourceLayer>,
 }
 
@@ -100,6 +111,26 @@ impl Source{
         if params.len()==0 {
             return Err(Error::Other( format!("Source \"{}\" is empty", &id) ));
         }
+
+        let (full_semantics,short_semantics)={
+            let mut full_semantics=String::new();
+            let mut short_semantics=String::new();
+
+            for &(param_name,param_type) in params.iter().take(params.len()-1){
+                full_semantics.push_str( &format!("{}:{},",param_name.print_semantics(), param_type.print_data_type()) );
+                short_semantics.push_str( &format!("{},",param_name.print_semantics()) );
+            }
+
+            let &(param_name,param_type)=match params.iter().last(){
+                Some(p) => p,
+                None => {unreachable!()},
+            };
+
+            full_semantics.push_str( &format!("{}:{}",param_name.print_semantics(), param_type.print_data_type()) );
+            short_semantics.push_str( &format!("{}",param_name.print_semantics()) );
+
+            (full_semantics,short_semantics)
+        };
 
         if accessor_stride!=params.len(){
             return Err(Error::Other( format!("stride({})!=params.len({})", accessor_stride, params.len()) ));
@@ -173,6 +204,8 @@ impl Source{
         Ok(
             Source{
                 id:id,
+                short_semantics:short_semantics,
+                full_semantics:full_semantics,
                 layers:layers,
             }
         )
