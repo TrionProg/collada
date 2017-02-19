@@ -98,3 +98,13 @@ impl Document{
     }
 
 }
+
+/*
+pub enum DocumentError{
+    FileError(std::io::Error),
+    XMLParseError(xmltree::ParseError),
+    Asset(AssetError),
+    Geometry(GeometryError),
+    Camera(CameraError),
+}
+*/

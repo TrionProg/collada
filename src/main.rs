@@ -3,7 +3,7 @@ extern crate collada;
 use std::path::Path;
 
 fn main(){
-    let document=match collada::Document::parse(&Path::new("a2.dae")){
+    let document=match collada::Document::parse(&Path::new("a2_5.dae")){
         Ok(d) => d,
         Err(e) => panic!("{}",e),
     };

@@ -22,7 +22,7 @@ mod source;
 pub use source::{Source,SourceLayer};
 
 mod mesh;
-pub use mesh::Mesh;
+pub use mesh::{Mesh,VertexLayer};
 
 mod geometry;
 pub use geometry::Geometry;

@@ -14,6 +14,7 @@ pub struct Polygon{
 }
 
 pub struct Mesh{
+    pub name:String,
     pub material:Option<String>,
     pub short_semantics:String,
     pub full_semantics:String,
@@ -30,7 +31,7 @@ pub struct VertexLayer{
 //TODO:Material shoild be Rc
 
 impl Mesh{
-    pub fn parse_meshes(mesh:&Element, meshes:&mut Vec<Mesh>) -> Result<(),Error>{
+    pub fn parse_meshes(mesh:&Element, geometry_name:&String, mesh_index:usize, meshes:&mut Vec<Mesh>) -> Result<(),Error>{
         let all_sources=Mesh::read_sources(mesh)?;
 
         for polylist in mesh.children.iter(){
@@ -47,6 +48,7 @@ impl Mesh{
 
                 meshes.push(
                     Mesh{
+                        name:format!("{}#{}",geometry_name, mesh_index),
                         material:material,
                         short_semantics:short_semantics,
                         full_semantics:full_semantics,

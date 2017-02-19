@@ -3,6 +3,7 @@ use xmltree;
 use std::fmt::Display;
 use std::fmt;
 
+#[derive(Debug)]
 pub enum Error{
     FileError(std::io::Error),
     ParseError(xmltree::ParseError),

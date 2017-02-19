@@ -21,9 +21,9 @@ impl Geometry{
 
         let mut meshes=Vec::new();
 
-        for mesh_element in geometry.children.iter(){
+        for (mesh_index,mesh_element) in geometry.children.iter().enumerate(){
             if mesh_element.name.as_str()=="mesh" {
-                Mesh::parse_meshes(&mesh_element, &mut meshes)?;
+                Mesh::parse_meshes(&mesh_element, &name, mesh_index, &mut meshes)?;
             }
         }
 
