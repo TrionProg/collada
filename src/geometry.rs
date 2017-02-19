@@ -11,11 +11,11 @@ use Mesh;
 pub struct Geometry{
     pub id:String,
     pub name:String,
-    pub meshes:Vec<Mesh>,
+    pub meshes:Vec<Rc<Mesh>>,
 }
 
 impl Geometry{
-    pub fn parse(geometry:&Element) -> Result<Geometry,Error>{
+    pub fn parse(geometry:&Element, mesh_id:&mut usize) -> Result<Geometry,Error>{
         let id=geometry.get_attribute("id")?.clone();
         let name=geometry.get_attribute("name")?.clone();
 
@@ -23,7 +23,7 @@ impl Geometry{
 
         for (mesh_index,mesh_element) in geometry.children.iter().enumerate(){
             if mesh_element.name.as_str()=="mesh" {
-                Mesh::parse_meshes(&mesh_element, &name, mesh_index, &mut meshes)?;
+                Mesh::parse_meshes(&mesh_element, &name, mesh_index, mesh_id, &mut meshes)?;
             }
         }
 
@@ -61,9 +61,11 @@ pub fn parse_geometries(root:&Element) -> Result< HashMap<String,Rc<Geometry>>, 
     let geometries_element=root.get_element("library_geometries")?;
     let mut geometries=HashMap::new();
 
+    let mut mesh_id=0;
+
     for geometry_element in geometries_element.children.iter(){
         if geometry_element.name.as_str()=="geometry" {
-            let geometry=Geometry::parse(&geometry_element)?;
+            let geometry=Geometry::parse(&geometry_element, &mut mesh_id)?;
 
             match geometries.entry(geometry.id.clone()){
                 Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate geometry with id \"{}\"", &geometry.id) )),

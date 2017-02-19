@@ -5,7 +5,8 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum Error{
-    FileError(std::io::Error),
+    NotUnicodeFileName,
+    FileError(String,std::io::Error),
     ParseError(xmltree::ParseError),
     NoAttribute{element_name:String, attrib_name:String},
     NoElement{element_name:String, child_element_name:String},
@@ -18,7 +19,8 @@ pub enum Error{
 impl Display for Error{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self{
-            Error::FileError(ref e) => write!(f, "File error:{}", e),
+            Error::NotUnicodeFileName => write!(f, "Charset of name of file is not unicode"),
+            Error::FileError(ref file_name, ref e) => write!(f, "File \"{}\" error:{}", file_name, e),
             Error::ParseError(ref e) => write!(f, "Parse error:{}", e),
             Error::NoAttribute{ref element_name, ref attrib_name} => write!(f, "Element \"{}\" has not attrib \"{}\"", element_name, attrib_name),
             Error::NoElement{ref element_name, ref child_element_name} => write!(f, "Element \"{}\" does not contains element \"{}\"", element_name, child_element_name),

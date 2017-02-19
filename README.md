@@ -14,8 +14,8 @@ Because this library tries to be so flexible as possible, it stores data by the 
 * Each *geometry* contains **meshes**.
 * Each *mesh* may have only one material(or no material) and contains next geometry data:
 * **Polygons** may contain 2,3 or more **vertices**. Each Polygon stores index of first vertex and number of vertices.
-* *Mesh* has **vertex_layers** field. It contains vertices, but because each vertex contains a few layers like Position,Texture Coords, vertex_layers is list of this **vertex layers**.
-* Each *VertexLayer* contains **source** and **indexes** of values, that source contains.
+* *Mesh* has **vertex_indices** field. It contains vertices, but because each vertex contains a few layers like Position,Texture Coords, vertex_indices is list of this **vertex indices**.
+* Each *VertexIndices* contains **source** and **indices** of values, that source contains.
 * *Source* is list of, for example, coordinates, but each coordinate has several layers like X,Y,Z. That is why each source contains several **source layers**.
 * And finally each *source layer* may keep values as float or integer.
 
@@ -45,7 +45,7 @@ let source_data=match *y_source_layer {
     _ => panic!("we expect only float"),
 };
 let vertex_index=polygon.first_vertex_index+1;
-println!("Y coord is {}",source_data[position.indexes[vertex_index]]);
+println!("Y coord is {}",source_data[position.indices[vertex_index]]);
 
 document.print_tree();//print document tree
 ```
@@ -56,52 +56,52 @@ Document Tree
 ```
 Document
 ├── Geometries
-│   ├── Geometry id:"Cylinder_007-mesh" name:"Cylinder.007"
-│   │   └── Mesh material:"tex2-material"
-│   │       ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(V,U)
-│   │       └── Vertex
-│   │           ├── Layer "NORMAL" source id:"Cylinder_007-mesh-normals"
-│   │           ├── Layer "TEXCOORD" source id:"Cylinder_007-mesh-map-0"
-│   │           └── Layer "VERTEX" source id:"Cylinder_007-mesh-positions"
-│   ├── Geometry id:"Cylinder_008-mesh" name:"Cylinder.008"
-│   │   └── Mesh material:"Material_001-material"
-│   │       ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(V,U)
-│   │       └── Vertex
-│   │           ├── Layer "NORMAL" source id:"Cylinder_008-mesh-normals"
-│   │           ├── Layer "TEXCOORD" source id:"Cylinder_008-mesh-map-0"
-│   │           └── Layer "VERTEX" source id:"Cylinder_008-mesh-positions"
 │   ├── Geometry id:"Cylinder_003-mesh" name:"Cylinder.003"
 │   │   ├── Mesh material:"tex1-material"
-│   │   │   ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(V,U) &(G,R,B)
+│   │   │   ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(U,V) &(R,G,B)
 │   │   │   └── Vertex
-│   │   │       ├── Layer "COLOR" source id:"Cylinder_003-mesh-colors-Col"
-│   │   │       ├── Layer "NORMAL" source id:"Cylinder_003-mesh-normals"
-│   │   │       ├── Layer "TEXCOORD" source id:"Cylinder_003-mesh-map-0"
-│   │   │       └── Layer "VERTEX" source id:"Cylinder_003-mesh-positions"
+│   │   │       ├── Vertex indices for "NORMAL" source id:"Cylinder_003-mesh-normals"
+│   │   │       ├── Vertex indices for "TEXCOORD" source id:"Cylinder_003-mesh-map-0"
+│   │   │       ├── Vertex indices for "COLOR" source id:"Cylinder_003-mesh-colors-Col"
+│   │   │       └── Vertex indices for "VERTEX" source id:"Cylinder_003-mesh-positions"
 │   │   └── Mesh material:"tex2-material"
-│   │       ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(V,U) &(G,R,B)
+│   │       ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(U,V) &(R,G,B)
 │   │       └── Vertex
-│   │           ├── Layer "COLOR" source id:"Cylinder_003-mesh-colors-Col"
-│   │           ├── Layer "NORMAL" source id:"Cylinder_003-mesh-normals"
-│   │           ├── Layer "TEXCOORD" source id:"Cylinder_003-mesh-map-0"
-│   │           └── Layer "VERTEX" source id:"Cylinder_003-mesh-positions"
-│   └── Geometry id:"Cylinder_004-mesh" name:"Cylinder.004"
-│       └── Mesh material:"Material-material"
-│           ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(V,U)
+│   │           ├── Vertex indices for "NORMAL" source id:"Cylinder_003-mesh-normals"
+│   │           ├── Vertex indices for "TEXCOORD" source id:"Cylinder_003-mesh-map-0"
+│   │           ├── Vertex indices for "COLOR" source id:"Cylinder_003-mesh-colors-Col"
+│   │           └── Vertex indices for "VERTEX" source id:"Cylinder_003-mesh-positions"
+│   ├── Geometry id:"Cylinder_008-mesh" name:"Cylinder.008"
+│   │   └── Mesh material:"Material_001-material"
+│   │       ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(U,V)
+│   │       └── Vertex
+│   │           ├── Vertex indices for "NORMAL" source id:"Cylinder_008-mesh-normals"
+│   │           ├── Vertex indices for "TEXCOORD" source id:"Cylinder_008-mesh-map-0"
+│   │           └── Vertex indices for "VERTEX" source id:"Cylinder_008-mesh-positions"
+│   ├── Geometry id:"Cylinder_004-mesh" name:"Cylinder.004"
+│   │   └── Mesh material:"Material-material"
+│   │       ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(U,V)
+│   │       └── Vertex
+│   │           ├── Vertex indices for "NORMAL" source id:"Cylinder_004-mesh-normals"
+│   │           ├── Vertex indices for "TEXCOORD" source id:"Cylinder_004-mesh-map-0"
+│   │           └── Vertex indices for "VERTEX" source id:"Cylinder_004-mesh-positions"
+│   └── Geometry id:"Cylinder_007-mesh" name:"Cylinder.007"
+│       └── Mesh material:"tex2-material"
+│           ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(U,V)
 │           └── Vertex
-│               ├── Layer "NORMAL" source id:"Cylinder_004-mesh-normals"
-│               ├── Layer "TEXCOORD" source id:"Cylinder_004-mesh-map-0"
-│               └── Layer "VERTEX" source id:"Cylinder_004-mesh-positions"
+│               ├── Vertex indices for "NORMAL" source id:"Cylinder_007-mesh-normals"
+│               ├── Vertex indices for "TEXCOORD" source id:"Cylinder_007-mesh-map-0"
+│               └── Vertex indices for "VERTEX" source id:"Cylinder_007-mesh-positions"
 └── Scenes
     └── Scene id:"Scene" name:"Scene"
         ├── Geometries
+        │   ├── Node id:"WFR" name:"WFR" joided to "Cylinder_007-mesh"
+        │   ├── Node id:"WFR_003" name:"WFR_003" joided to "Cylinder_007-mesh"
         │   ├── Node id:"WFR_002" name:"WFR_002" joided to "Cylinder_007-mesh"
         │   ├── Node id:"body" name:"body" joided to "Cylinder_003-mesh"
         │   ├── Node id:"Cylinder_003" name:"Cylinder_003" joided to "Cylinder_004-mesh"
-        │   ├── Node id:"WFR" name:"WFR" joided to "Cylinder_007-mesh"
-        │   ├── Node id:"WFR_003" name:"WFR_003" joided to "Cylinder_007-mesh"
-        │   ├── Node id:"WFR_001" name:"WFR_001" joided to "Cylinder_007-mesh"
-        │   └── Node id:"Cylinder_000" name:"Cylinder_000" joided to "Cylinder_008-mesh"
+        │   ├── Node id:"Cylinder_000" name:"Cylinder_000" joided to "Cylinder_008-mesh"
+        │   └── Node id:"WFR_001" name:"WFR_001" joided to "Cylinder_007-mesh"
         └── Cameras
             └── Node id:"Camera" name:"Camera" joided to "Camera-camera"
 ```

@@ -31,7 +31,14 @@ impl Document{
     pub fn parse(file_name:&Path) -> Result<Document,Error>{
         let file=match File::open(file_name){
             Ok(f) => f,
-            Err(e) => return Err(Error::FileError(e)),
+            Err(e) => {
+                let file_name_str=match file_name.to_str(){
+                    Some( fns ) => String::from(fns),
+                    None => return Err( Error::NotUnicodeFileName ),
+                };
+
+                return Err(Error::FileError(file_name_str,e));
+            },
         };
 
         let reader = BufReader::new(file);
