@@ -18,7 +18,7 @@ pub enum LayerType{
 }
 
 impl LayerType{
-    pub fn print_semantics(&self) -> &'static str{
+    pub fn print_vertex_format(&self) -> &'static str{
         match *self{
             LayerType::X => "X",
             LayerType::Y => "Y",
@@ -63,8 +63,8 @@ impl SourceLayer{
 
 pub struct Source{
     pub id:String,
-    pub short_semantics:String,
-    pub full_semantics:String,
+    pub short_vertex_format:String,
+    pub full_vertex_format:String,
     pub layers:HashMap<String,SourceLayer>,
 }
 
@@ -112,13 +112,13 @@ impl Source{
             return Err(Error::Other( format!("Source \"{}\" is empty", &id) ));
         }
 
-        let (full_semantics,short_semantics)={
-            let mut full_semantics=String::new();
-            let mut short_semantics=String::new();
+        let (full_vertex_format,short_vertex_format)={
+            let mut full_vertex_format=String::new();
+            let mut short_vertex_format=String::new();
 
             for &(param_name,param_type) in params.iter().take(params.len()-1){
-                full_semantics.push_str( &format!("{}:{},",param_name.print_semantics(), param_type.print_data_type()) );
-                short_semantics.push_str( &format!("{},",param_name.print_semantics()) );
+                full_vertex_format.push_str( &format!("{}:{},",param_name.print_vertex_format(), param_type.print_data_type()) );
+                short_vertex_format.push_str( &format!("{},",param_name.print_vertex_format()) );
             }
 
             let &(param_name,param_type)=match params.iter().last(){
@@ -126,10 +126,10 @@ impl Source{
                 None => {unreachable!()},
             };
 
-            full_semantics.push_str( &format!("{}:{}",param_name.print_semantics(), param_type.print_data_type()) );
-            short_semantics.push_str( &format!("{}",param_name.print_semantics()) );
+            full_vertex_format.push_str( &format!("{}:{}",param_name.print_vertex_format(), param_type.print_data_type()) );
+            short_vertex_format.push_str( &format!("{}",param_name.print_vertex_format()) );
 
-            (full_semantics,short_semantics)
+            (full_vertex_format,short_vertex_format)
         };
 
         if accessor_stride!=params.len(){
@@ -193,8 +193,8 @@ impl Source{
         let mut layers=HashMap::new();
 
         for &(layer_type,_) in params.iter().rev(){
-            match layers.entry( String::from(layer_type.print_semantics()) ){
-                Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate layer with semantics \"{}\"",layer_type.print_semantics()) )),
+            match layers.entry( String::from(layer_type.print_vertex_format()) ){
+                Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate layer with vertex_format \"{}\"",layer_type.print_vertex_format()) )),
                 Entry::Vacant(entry) => {
                     entry.insert( layers_data.pop().unwrap() );
                 },
@@ -204,8 +204,8 @@ impl Source{
         Ok(
             Source{
                 id:id,
-                short_semantics:short_semantics,
-                full_semantics:full_semantics,
+                short_vertex_format:short_vertex_format,
+                full_vertex_format:full_vertex_format,
                 layers:layers,
             }
         )

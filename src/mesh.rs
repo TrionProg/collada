@@ -17,8 +17,8 @@ pub struct Mesh{
     pub id:usize,
     pub name:String,
     pub material:Option<String>,
-    pub short_semantics:String,
-    pub full_semantics:String,
+    pub short_vertex_format:String,
+    pub full_vertex_format:String,
     pub sources:Vec<(String,Rc<Source>)>,
     pub polygons:Vec<Polygon>,
     pub vertex_indices:HashMap<String,Rc<VertexIndices>>,
@@ -42,7 +42,7 @@ impl Mesh{
                     None => None,
                 };
 
-                let (sources, short_semantics, full_semantics)=Mesh::select_sources_and_generate_semantics(&polylist, &all_sources)?;
+                let (sources, short_vertex_format, full_vertex_format)=Mesh::select_sources_and_generate_vertex_format(&polylist, &all_sources)?;
 
                 let (polygons,vertices_count)=Mesh::read_polygons(&polylist)?;
                 let vertex_indices=Mesh::read_vertices(&polylist, vertices_count, &sources)?;
@@ -51,8 +51,8 @@ impl Mesh{
                     id:*mesh_id,
                     name:format!("{}#{}",geometry_name, mesh_index),
                     material:material,
-                    short_semantics:short_semantics,
-                    full_semantics:full_semantics,
+                    short_vertex_format:short_vertex_format,
+                    full_vertex_format:full_vertex_format,
                     sources:sources,
                     polygons:polygons,
                     vertex_indices:vertex_indices,
@@ -107,10 +107,10 @@ impl Mesh{
         Ok(sources)
     }
 
-    pub fn select_sources_and_generate_semantics(polylist:&Element, sources:&HashMap<String,Rc<Source>>) -> Result<(Vec<(String,Rc<Source>)>,String,String),Error>{
+    pub fn select_sources_and_generate_vertex_format(polylist:&Element, sources:&HashMap<String,Rc<Source>>) -> Result<(Vec<(String,Rc<Source>)>,String,String),Error>{
         let mut poly_sources=Vec::new();
-        let mut full_semantics=String::new();
-        let mut short_semantics=String::new();
+        let mut full_vertex_format=String::new();
+        let mut short_vertex_format=String::new();
 
         for input_element in polylist.children.iter(){
             if input_element.name.as_str()=="input" {
@@ -127,21 +127,21 @@ impl Mesh{
                     None => return Err(Error::Other( format!("Source with id \"{}\" does not exists", source_id) )),
                 };
 
-                if full_semantics.as_str()!=""{
-                    full_semantics.push(' ');
+                if full_vertex_format.as_str()!=""{
+                    full_vertex_format.push(' ');
                 }
-                full_semantics.push_str(&format!("{}:&({})",source_semantic,source.full_semantics));
+                full_vertex_format.push_str(&format!("{}:&({})",source_semantic,source.full_vertex_format));
 
-                if short_semantics.as_str()!=""{
-                    short_semantics.push(' ');
+                if short_vertex_format.as_str()!=""{
+                    short_vertex_format.push(' ');
                 }
-                short_semantics.push_str(&format!("&({})",source.short_semantics));
+                short_vertex_format.push_str(&format!("&({})",source.short_vertex_format));
 
                 poly_sources.push((source_semantic.clone(),source));
             }
         }
 
-        Ok((poly_sources, short_semantics, full_semantics))
+        Ok((poly_sources, short_vertex_format, full_vertex_format))
     }
 
     pub fn read_polygons(polylist:&Element) -> Result<(Vec<Polygon>,usize),Error>{//read polygons(<vcount> tag)
@@ -209,7 +209,7 @@ impl Mesh{
 
         for &(ref vertex_layer_name, ref source) in sources.iter().rev(){
             match vertex_indices.entry(vertex_layer_name.clone()){
-                Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate source with semantics \"{}\"",vertex_layer_name) )),
+                Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate source with vertex_format \"{}\"",vertex_layer_name) )),
                 Entry::Vacant(entry) => {
                     let vi=VertexIndices{
                         source:source.clone(),
@@ -245,7 +245,7 @@ impl Mesh{
         print_tab(last_geometry);
         print_tab(last_mesh);
         print_branch(false);
-        println!("Short semantics: {}",self.short_semantics);
+        println!("Short vertex_format: {}",self.short_vertex_format);
 
         print_tab(false);
         print_tab(last_geometry);
