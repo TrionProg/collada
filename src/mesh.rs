@@ -4,9 +4,10 @@ use xmltree::Element;
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use Source;
+use Asset;
 
 pub struct Polygon{
     pub first_vertex_index:usize,
@@ -18,22 +19,29 @@ pub struct Mesh{
     pub name:String,
     pub material:Option<String>,
     pub short_vertex_format:String,
-    pub full_vertex_format:String,
-    pub sources:Vec<(String,Rc<Source>)>,
+    pub vertex_format:String,
+    pub sources:Vec<(String,Arc<Source>)>,
     pub polygons:Vec<Polygon>,
-    pub vertex_indices:HashMap<String,Rc<VertexIndices>>,
+    pub vertex_indices:HashMap<String,Arc<VertexIndices>>,
 }
 
 pub struct VertexIndices{
-    pub source:Rc<Source>,
+    pub source:Arc<Source>,
     pub indices:Vec<usize>,
 }
 
-//TODO:Material shoild be Rc
+//TODO:Material shoild be Arc
 
 impl Mesh{
-    pub fn parse_meshes(mesh:&Element, geometry_name:&String, mesh_index:usize, mesh_id: &mut usize, meshes:&mut Vec<Rc<Mesh>>) -> Result<(),Error>{
-        let all_sources=Mesh::read_sources(mesh)?;
+    pub fn parse_meshes(
+        mesh:&Element,
+        geometry_name:&String,
+        mesh_index:usize,
+        mesh_id: &mut usize,
+        meshes:&mut Vec<Arc<Mesh>>,
+        asset:&Asset
+    ) -> Result<(),Error>{
+        let all_sources=Mesh::read_sources(mesh, asset)?;
 
         for polylist in mesh.children.iter(){
             if polylist.name.as_str()=="polylist"{
@@ -42,7 +50,7 @@ impl Mesh{
                     None => None,
                 };
 
-                let (sources, short_vertex_format, full_vertex_format)=Mesh::select_sources_and_generate_vertex_format(&polylist, &all_sources)?;
+                let (sources, short_vertex_format, vertex_format)=Mesh::select_sources_and_generate_vertex_format(&polylist, &all_sources)?;
 
                 let (polygons,vertices_count)=Mesh::read_polygons(&polylist)?;
                 let vertex_indices=Mesh::read_vertices(&polylist, vertices_count, &sources)?;
@@ -52,13 +60,13 @@ impl Mesh{
                     name:format!("{}#{}",geometry_name, mesh_index),
                     material:material,
                     short_vertex_format:short_vertex_format,
-                    full_vertex_format:full_vertex_format,
+                    vertex_format:vertex_format,
                     sources:sources,
                     polygons:polygons,
                     vertex_indices:vertex_indices,
                 };
 
-                meshes.push( Rc::new( mesh ) );
+                meshes.push( Arc::new( mesh ) );
 
                 *mesh_id+=1;
             }
@@ -67,18 +75,18 @@ impl Mesh{
         Ok(())
     }
 
-    pub fn read_sources(mesh:&Element) -> Result<HashMap<String,Rc<Source>>,Error>{
+    pub fn read_sources(mesh:&Element, asset:&Asset) -> Result<HashMap<String,Arc<Source>>,Error>{
         //read sources
         let mut sources=HashMap::new();
 
         for source_element in mesh.children.iter(){
             if source_element.name.as_str()=="source" {
-                let source=Source::parse(&source_element)?;
+                let source=Source::parse(&source_element, asset)?;
 
                 match sources.entry(source.id.clone()){
                     Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate source with id \"{}\"", &source.id) )),
                     Entry::Vacant(entry) => {
-                        entry.insert(Rc::new(source));
+                        entry.insert(Arc::new(source));
                     },
                 }
             }
@@ -107,9 +115,9 @@ impl Mesh{
         Ok(sources)
     }
 
-    pub fn select_sources_and_generate_vertex_format(polylist:&Element, sources:&HashMap<String,Rc<Source>>) -> Result<(Vec<(String,Rc<Source>)>,String,String),Error>{
+    pub fn select_sources_and_generate_vertex_format(polylist:&Element, sources:&HashMap<String,Arc<Source>>) -> Result<(Vec<(String,Arc<Source>)>,String,String),Error>{
         let mut poly_sources=Vec::new();
-        let mut full_vertex_format=String::new();
+        let mut vertex_format=String::new();
         let mut short_vertex_format=String::new();
 
         for input_element in polylist.children.iter(){
@@ -127,10 +135,10 @@ impl Mesh{
                     None => return Err(Error::Other( format!("Source with id \"{}\" does not exists", source_id) )),
                 };
 
-                if full_vertex_format.as_str()!=""{
-                    full_vertex_format.push(' ');
+                if vertex_format.as_str()!=""{
+                    vertex_format.push(' ');
                 }
-                full_vertex_format.push_str(&format!("{}:&({})",source_semantic,source.full_vertex_format));
+                vertex_format.push_str(&format!("{}:&({})",source_semantic,source.vertex_format));
 
                 if short_vertex_format.as_str()!=""{
                     short_vertex_format.push(' ');
@@ -141,7 +149,7 @@ impl Mesh{
             }
         }
 
-        Ok((poly_sources, short_vertex_format, full_vertex_format))
+        Ok((poly_sources, short_vertex_format, vertex_format))
     }
 
     pub fn read_polygons(polylist:&Element) -> Result<(Vec<Polygon>,usize),Error>{//read polygons(<vcount> tag)
@@ -174,7 +182,7 @@ impl Mesh{
         Ok((polygons,vertices_count))
     }
 
-    pub fn read_vertices(polylist:&Element, vertices_count:usize, sources:&Vec<(String,Rc<Source>)>) -> Result<HashMap<String,Rc<VertexIndices>>,Error>{//read vertices(<p> tag)
+    pub fn read_vertices(polylist:&Element, vertices_count:usize, sources:&Vec<(String,Arc<Source>)>) -> Result<HashMap<String,Arc<VertexIndices>>,Error>{//read vertices(<p> tag)
         let sources_count=sources.len();
         let source_data_indices_per_vertex=polylist.get_element("p")?.get_text()?;
 
@@ -216,7 +224,7 @@ impl Mesh{
                         indices:vertex_indices_indices.pop().unwrap(),
                     };
 
-                    entry.insert( Rc::new(vi) );
+                    entry.insert( Arc::new(vi) );
                 },
             }
         }

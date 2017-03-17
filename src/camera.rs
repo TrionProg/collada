@@ -4,7 +4,7 @@ use xmltree::Element;
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct Perspective{
     pub z_near:f32,
@@ -45,7 +45,7 @@ impl Camera{
     }
 }
 
-pub fn parse_cameras(root:&Element) -> Result< HashMap<String,Rc<Camera>>, Error>{
+pub fn parse_cameras(root:&Element) -> Result< HashMap<String,Arc<Camera>>, Error>{
     let cameras_element=root.get_element("library_cameras")?;
     let mut cameras=HashMap::new();
 
@@ -54,7 +54,7 @@ pub fn parse_cameras(root:&Element) -> Result< HashMap<String,Rc<Camera>>, Error
 
         match cameras.entry(camera.id.clone()){
             Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate camera with id \"{}\"", &camera.id) )),
-            Entry::Vacant(entry) => { entry.insert(Rc::new(camera)); },
+            Entry::Vacant(entry) => { entry.insert(Arc::new(camera)); },
         }
     }
 

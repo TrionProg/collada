@@ -5,6 +5,9 @@ use xmltree::Element;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 
+use Asset;
+use Axis;
+
 #[derive(Copy, Clone)]
 pub enum LayerType{
     X,
@@ -34,29 +37,29 @@ impl LayerType{
 
 #[derive(Copy, Clone)]
 pub enum DataType{
-    Float,
-    Integer,
+    F32,
+    I32,
 }
 
 impl DataType{
     pub fn print_data_type(&self) -> &'static str{
         match *self{
-            DataType::Float => "float",
-            DataType::Integer => "integer",
+            DataType::F32 => "f32",
+            DataType::I32 => "i32",
         }
     }
 }
 
 pub enum SourceLayer{
-    Float(Vec<f32>),
-    Integer(Vec<i32>),
+    F32(Vec<f32>),
+    I32(Vec<i32>),
 }
 
 impl SourceLayer{
     pub fn print_data_type(&self) -> &'static str{
         match *self{
-            SourceLayer::Float(_) => "float",
-            SourceLayer::Integer(_) => "integer",
+            SourceLayer::F32(_) => "f32",
+            SourceLayer::I32(_) => "i32",
         }
     }
 }
@@ -64,12 +67,12 @@ impl SourceLayer{
 pub struct Source{
     pub id:String,
     pub short_vertex_format:String,
-    pub full_vertex_format:String,
+    pub vertex_format:String,
     pub layers:HashMap<String,SourceLayer>,
 }
 
 impl Source{
-    pub fn parse(source:&Element) -> Result<Source,Error>{
+    pub fn parse(source:&Element, asset:&Asset) -> Result<Source,Error>{
         let id=source.get_attribute("id")?.clone();
 
         let float_array=source.get_element("float_array")?;
@@ -80,7 +83,36 @@ impl Source{
         let accessor_count=accessor.parse_attribute_as_usize("count")?;
         let accessor_stride=accessor.parse_attribute_as_usize("stride")?;
 
-        //read information about layers
+        let mut params=Self::get_params(&accessor, &id, asset)?;
+
+        let (vertex_format,short_vertex_format)=Self::get_vertex_format(&params);
+
+        let mut layers_data=Self::get_layers_data(
+            accessor_stride, accessor_count, float_array_data, float_array_count, &params
+        )?;
+
+        let mut layers=HashMap::new();
+
+        for &(_,layer_type,_) in params.iter().rev(){
+            match layers.entry( String::from(layer_type.print_vertex_format()) ){
+                Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate layer with vertex_format \"{}\"",layer_type.print_vertex_format()) )),
+                Entry::Vacant(entry) => {
+                    entry.insert( layers_data.pop().unwrap() );
+                },
+            }
+        }
+
+        Ok(
+            Source{
+                id:id,
+                short_vertex_format:short_vertex_format,
+                vertex_format:vertex_format,
+                layers:layers,
+            }
+        )
+    }
+
+    fn get_params(accessor:&Element, id:&String, asset:&Asset) -> Result<Vec<(LayerType,LayerType,DataType)>,Error>{
         let mut params=Vec::with_capacity(4);
 
         for param_element in accessor.children.iter(){
@@ -98,40 +130,79 @@ impl Source{
                     _ => return Err(Error::Other( format!("Expected X, Y, Z, S, T, R, G or B but {} has been found",param_name_str) )),
                 };
 
+                let standard_layer_type=Self::get_standard_layer_type(param_name, asset);
+
                 let param_data_type_str=param_element.get_attribute("type")?.as_str();
                 let param_type=match param_data_type_str{
-                    "float" => DataType::Float,
+                    "float" => DataType::F32,
                     _ => return Err(Error::Other( format!("Expected float, but {} has been found",param_data_type_str) )),
                 };
 
-                params.push((param_name, param_type));
+                params.push((param_name, standard_layer_type, param_type));
             }
         }
 
         if params.len()==0 {
-            return Err(Error::Other( format!("Source \"{}\" is empty", &id) ));
+            return Err(Error::Other( format!("Source \"{}\" is empty", id) ));
         }
 
-        let (full_vertex_format,short_vertex_format)={
-            let mut full_vertex_format=String::new();
-            let mut short_vertex_format=String::new();
+        Ok(params)
+    }
 
-            for &(param_name,param_type) in params.iter().take(params.len()-1){
-                full_vertex_format.push_str( &format!("{}:{},",param_name.print_vertex_format(), param_type.print_data_type()) );
-                short_vertex_format.push_str( &format!("{},",param_name.print_vertex_format()) );
-            }
+    fn get_standard_layer_type(layer_type:LayerType, asset:&Asset) -> LayerType {
+        match layer_type {
+            LayerType::X => {
+                match asset.up_axis {
+                    Axis::X => LayerType::Y,
+                    Axis::Y => LayerType::X,
+                    Axis::Z => LayerType::X,
+                }
+            },
+            LayerType::Y => {
+                match asset.up_axis {
+                    Axis::X => LayerType::X,
+                    Axis::Y => LayerType::Y,
+                    Axis::Z => LayerType::Z,
+                }
+            },
+            LayerType::Z => {
+                match asset.up_axis {
+                    Axis::X => LayerType::Z,
+                    Axis::Y => LayerType::Z,
+                    Axis::Z => LayerType::Y,
+                }
+            },
+            _ => layer_type
+        }
+    }
 
-            let &(param_name,param_type)=match params.iter().last(){
-                Some(p) => p,
-                None => {unreachable!()},
-            };
+    fn get_vertex_format(params:&Vec<(LayerType,LayerType,DataType)>) -> (String,String) {
+        let mut vertex_format=String::new();
+        let mut short_vertex_format=String::new();
 
-            full_vertex_format.push_str( &format!("{}:{}",param_name.print_vertex_format(), param_type.print_data_type()) );
-            short_vertex_format.push_str( &format!("{}",param_name.print_vertex_format()) );
+        for &(param_name,_,param_type) in params.iter().take(params.len()-1){
+            vertex_format.push_str( &format!("{}:{},",param_name.print_vertex_format(), param_type.print_data_type()) );
+            short_vertex_format.push_str( &format!("{},",param_name.print_vertex_format()) );
+        }
 
-            (full_vertex_format,short_vertex_format)
+        let &(param_name,_,param_type)=match params.iter().last(){
+            Some(p) => p,
+            None => {unreachable!()},
         };
 
+        vertex_format.push_str( &format!("{}:{}",param_name.print_vertex_format(), param_type.print_data_type()) );
+        short_vertex_format.push_str( &format!("{}",param_name.print_vertex_format()) );
+
+        (vertex_format,short_vertex_format)
+    }
+
+    fn get_layers_data(
+        accessor_stride:usize,
+        accessor_count:usize,
+        float_array_data:&String,
+        float_array_count:usize,
+        params:&Vec<(LayerType,LayerType,DataType)>
+    ) -> Result<Vec<SourceLayer>,Error> {
         if accessor_stride!=params.len(){
             return Err(Error::Other( format!("stride({})!=params.len({})", accessor_stride, params.len()) ));
         }
@@ -142,10 +213,10 @@ impl Source{
 
         let mut layers_data=Vec::with_capacity(params.len());
 
-        for &(_,data_type) in params.iter(){
+        for &(_,_,data_type) in params.iter(){
             let layer_data=match data_type{
-                DataType::Float => SourceLayer::Float( Vec::with_capacity(accessor_count) ),
-                DataType::Integer => SourceLayer::Integer( Vec::with_capacity(accessor_count) ),
+                DataType::F32 => SourceLayer::F32( Vec::with_capacity(accessor_count) ),
+                DataType::I32 => SourceLayer::I32( Vec::with_capacity(accessor_count) ),
             };
 
             layers_data.push(layer_data);
@@ -157,16 +228,16 @@ impl Source{
             let layer_data=&mut layers_data[source_data_index];
 
             match *layer_data {
-                SourceLayer::Float( ref mut list) => {
+                SourceLayer::F32( ref mut list) => {
                     match v.parse::<f32>(){
                         Ok ( f ) => list.push( f ),
-                        Err( _ ) => return Err(Error::Other( format!("Can not parse mesh data {} as float", v) )),
+                        Err( _ ) => return Err(Error::ParseFloatError( String::from("Mesh data"), String::from(v)) ),
                     }
                 },
-                SourceLayer::Integer( ref mut list) => {
+                SourceLayer::I32( ref mut list) => {
                     match v.parse::<i32>(){
                         Ok ( f ) => list.push( f ),
-                        Err( _ ) => return Err(Error::Other( format!("Can not parse mesh data {} as integer", v) )),
+                        Err( _ ) => return Err(Error::ParseIntError( String::from("Mesh data"), String::from(v)) ),
                     }
                 },
             }
@@ -181,8 +252,8 @@ impl Source{
         //check
         for layer_data in layers_data.iter(){
             let count=match *layer_data{
-                SourceLayer::Float(ref list) => list.len(),
-                SourceLayer::Integer(ref list) => list.len(),
+                SourceLayer::F32(ref list) => list.len(),
+                SourceLayer::I32(ref list) => list.len(),
             };
 
             if count!=accessor_count{
@@ -190,24 +261,6 @@ impl Source{
             }
         }
 
-        let mut layers=HashMap::new();
-
-        for &(layer_type,_) in params.iter().rev(){
-            match layers.entry( String::from(layer_type.print_vertex_format()) ){
-                Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate layer with vertex_format \"{}\"",layer_type.print_vertex_format()) )),
-                Entry::Vacant(entry) => {
-                    entry.insert( layers_data.pop().unwrap() );
-                },
-            }
-        }
-
-        Ok(
-            Source{
-                id:id,
-                short_vertex_format:short_vertex_format,
-                full_vertex_format:full_vertex_format,
-                layers:layers,
-            }
-        )
+        Ok(layers_data)
     }
 }

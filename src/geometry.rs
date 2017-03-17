@@ -4,18 +4,19 @@ use xmltree::Element;
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use Mesh;
+use Asset;
 
 pub struct Geometry{
     pub id:String,
     pub name:String,
-    pub meshes:Vec<Rc<Mesh>>,
+    pub meshes:Vec<Arc<Mesh>>,
 }
 
 impl Geometry{
-    pub fn parse(geometry:&Element, mesh_id:&mut usize) -> Result<Geometry,Error>{
+    pub fn parse(geometry:&Element, mesh_id:&mut usize, asset:&Asset) -> Result<Geometry,Error>{
         let id=geometry.get_attribute("id")?.clone();
         let name=geometry.get_attribute("name")?.clone();
 
@@ -23,7 +24,7 @@ impl Geometry{
 
         for (mesh_index,mesh_element) in geometry.children.iter().enumerate(){
             if mesh_element.name.as_str()=="mesh" {
-                Mesh::parse_meshes(&mesh_element, &name, mesh_index, mesh_id, &mut meshes)?;
+                Mesh::parse_meshes(&mesh_element, &name, mesh_index, mesh_id, &mut meshes, asset)?;
             }
         }
 
@@ -57,7 +58,7 @@ impl Geometry{
     }
 }
 
-pub fn parse_geometries(root:&Element) -> Result< HashMap<String,Rc<Geometry>>, Error>{
+pub fn parse_geometries(root:&Element, asset:&Asset) -> Result< HashMap<String,Arc<Geometry>>, Error>{
     let geometries_element=root.get_element("library_geometries")?;
     let mut geometries=HashMap::new();
 
@@ -65,11 +66,11 @@ pub fn parse_geometries(root:&Element) -> Result< HashMap<String,Rc<Geometry>>, 
 
     for geometry_element in geometries_element.children.iter(){
         if geometry_element.name.as_str()=="geometry" {
-            let geometry=Geometry::parse(&geometry_element, &mut mesh_id)?;
+            let geometry=Geometry::parse(&geometry_element, &mut mesh_id, asset)?;
 
             match geometries.entry(geometry.id.clone()){
                 Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate geometry with id \"{}\"", &geometry.id) )),
-                Entry::Vacant(entry) => { entry.insert(Rc::new(geometry)); },
+                Entry::Vacant(entry) => { entry.insert(Arc::new(geometry)); },
             }
         }
     }

@@ -1,8 +1,5 @@
 extern crate xmltree;
 
-#[macro_use]
-mod macros;
-
 mod xml_element;
 pub use xml_element::XMLElement;
 
@@ -13,7 +10,7 @@ mod document;
 pub use document::Document;
 
 mod asset;
-pub use asset::{Asset};
+pub use asset::{Asset,Axis};
 
 mod camera;
 pub use camera::Camera;

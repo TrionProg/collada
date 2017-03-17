@@ -4,7 +4,7 @@ use xmltree::Element;
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use node::parse_node;
 
@@ -96,7 +96,7 @@ pub fn parse_scenes(root:&Element, document:&mut Document) -> Result<(), Error>{
 
             match document.scenes.entry(scene.id.clone()){
                 Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate scene with id \"{}\"", &scene.id) )),
-                Entry::Vacant(entry) => { entry.insert(Rc::new(scene)); },
+                Entry::Vacant(entry) => { entry.insert(Arc::new(scene)); },
             }
         }
     }

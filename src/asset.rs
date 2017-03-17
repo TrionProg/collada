@@ -7,6 +7,7 @@ pub struct Unit{
     pub ratio:f32,
 }
 
+#[derive(Copy,Clone)]
 pub enum Axis{
     X,
     Y,
@@ -35,7 +36,7 @@ impl Asset{
 
                 match ratio_str.parse::<f32>(){
                     Ok ( r ) => r,
-                    Err( _ ) => return Err(Error::StringParseError( String::from("Can not parse meter ratio as f32") )),
+                    Err( _ ) => return Err(Error::ParseFloatError( String::from("meter ratio"), ratio_str.clone() )),
                 }
             },
             _ => return Err(Error::Other( format!("Asset/Unit: Expected meter unit, found {}", unit_name.as_str()) )),

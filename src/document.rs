@@ -14,7 +14,7 @@ use std::io::BufReader;
 use std::fs::File;
 
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use camera::parse_cameras;
 use geometry::parse_geometries;
@@ -22,9 +22,9 @@ use scene::parse_scenes;
 
 pub struct Document{
     pub asset:Asset,
-    pub cameras:HashMap<String,Rc<Camera>>,
-    pub geometries:HashMap<String,Rc<Geometry>>,
-    pub scenes:HashMap<String,Rc<Scene>>,
+    pub cameras:HashMap<String,Arc<Camera>>,
+    pub geometries:HashMap<String,Arc<Geometry>>,
+    pub scenes:HashMap<String,Arc<Scene>>,
 }
 
 impl Document{
@@ -56,7 +56,7 @@ impl Document{
         let asset=Asset::parse(&root)?;
 
         let cameras=parse_cameras(&root)?;
-        let geometries=parse_geometries(&root)?;
+        let geometries=parse_geometries(&root, &asset)?;
 
         let mut document=Document{
             asset:asset,

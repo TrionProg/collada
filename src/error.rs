@@ -12,6 +12,8 @@ pub enum Error{
     NoElement{element_name:String, child_element_name:String},
     NoText{element_name:String},
     StringParseError(String),
+    ParseFloatError(String,String),
+    ParseIntError(String,String),
     Other(String),
 }
 
@@ -25,7 +27,9 @@ impl Display for Error{
             Error::NoAttribute{ref element_name, ref attrib_name} => write!(f, "Element \"{}\" has not attrib \"{}\"", element_name, attrib_name),
             Error::NoElement{ref element_name, ref child_element_name} => write!(f, "Element \"{}\" does not contains element \"{}\"", element_name, child_element_name),
             Error::NoText{ref element_name} => write!(f, "Element \"{}\" does not contains text between <x> and </x>", element_name),
-            Error::StringParseError(ref message) => write!(f, "String parse error: {}", message),
+            Error::StringParseError(ref ss) => write!(f, "Sy {}",ss), //TODO:remove?
+            Error::ParseFloatError(ref name, ref value) => write!(f, "Can not parse {} (\"{}\") as float", name, value),
+            Error::ParseIntError(ref name, ref value) => write!(f, "Can not parse {} (\"{}\") as integer", name, value),
             Error::Other(ref message) => write!(f, "{}", message),
         }
     }
