@@ -1,5 +1,11 @@
 extern crate xmltree;
 
+mod string_ext;
+pub use string_ext::StringExt;
+
+mod array;
+pub use array::ArrayIter;
+
 mod xml_element;
 pub use xml_element::XMLElement;
 
@@ -10,7 +16,7 @@ mod document;
 pub use document::Document;
 
 mod asset;
-pub use asset::{Asset,Axis};
+pub use asset::{Asset,Axis,Editor};
 
 mod camera;
 pub use camera::Camera;
@@ -24,8 +30,17 @@ pub use mesh::{Mesh,VertexIndices};
 mod geometry;
 pub use geometry::Geometry;
 
+//mod controller;
+//pub use controller::Skin;
+
+mod location;
+pub use location::{Position,Scale,Euler,Matrix};
+
 mod node;
 pub use node::Node;
+
+mod skeleton;
+pub use skeleton::{Bone,Skeleton};
 
 mod scene;
 pub use scene::Scene;

@@ -13,12 +13,14 @@ use Document;
 
 use Camera;
 use Geometry;
+use Skeleton;
 
 pub struct Scene{
     pub id:String,
     pub name:String,
     pub geometries:HashMap<String,Node<Geometry>>,
     pub cameras:HashMap<String,Node<Camera>>,
+    pub skeletons:HashMap<String,Node<Skeleton>>,
 }
 
 impl Scene{
@@ -28,10 +30,11 @@ impl Scene{
 
         let mut geometries=HashMap::new();
         let mut cameras=HashMap::new();
+        let mut skeletons=HashMap::new();
 
         for node_element in scene.children.iter(){
             if node_element.name.as_str()=="node" {
-                parse_node(node_element, document, &mut geometries, &mut cameras)?;
+                parse_node(node_element, document, None, &mut geometries, &mut cameras, &mut skeletons)?;
             }
         }
 
@@ -41,6 +44,7 @@ impl Scene{
                 name:name,
                 geometries:geometries,
                 cameras:cameras,
+                skeletons:skeletons,
             }
         )
     }
@@ -66,6 +70,22 @@ impl Scene{
 
         match self.geometries.iter().last(){
             Some((_,geometry)) => geometry.print_tree(last_scene,true),
+            None => {},
+        }
+
+        print_tab(true);
+        print_tab(last_scene);
+        print_branch(false);
+        println!("Skeletons");
+
+        if self.skeletons.len()>1 {
+            for (_,skeleton) in self.skeletons.iter().take(self.skeletons.len()-1){
+                skeleton.print_tree(last_scene,false);
+            }
+        }
+
+        match self.skeletons.iter().last(){
+            Some((_,skeleton)) => skeleton.print_tree(last_scene,true),
             None => {},
         }
 

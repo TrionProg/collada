@@ -2,13 +2,17 @@ use Error;
 use XMLElement;
 use xmltree::Element;
 
+use std::sync::Arc;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 
 use Asset;
 use Axis;
+use Editor;
+use ArrayIter;
+use Matrix;
 
-#[derive(Copy, Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum LayerType{
     X,
     Y,
@@ -18,10 +22,14 @@ pub enum LayerType{
     R,
     G,
     B,
+    BoneName,
+    TransformMatrix,
+    Weight,
+    Other(String),
 }
 
 impl LayerType{
-    pub fn print_vertex_format(&self) -> &'static str{
+    pub fn print_vertex_format(&self) -> & str{
         match *self{
             LayerType::X => "X",
             LayerType::Y => "Y",
@@ -31,6 +39,10 @@ impl LayerType{
             LayerType::R => "R",
             LayerType::G => "G",
             LayerType::B => "B",
+            LayerType::BoneName => "bone_name",
+            LayerType::TransformMatrix => "transform_matrix",
+            LayerType::Weight => "weight",
+            LayerType::Other(ref s) => s.as_str(),
         }
     }
 }
@@ -39,6 +51,8 @@ impl LayerType{
 pub enum DataType{
     F32,
     I32,
+    Name,
+    Matrix4,
 }
 
 impl DataType{
@@ -46,6 +60,15 @@ impl DataType{
         match *self{
             DataType::F32 => "f32",
             DataType::I32 => "i32",
+            DataType::Name => "name",
+            DataType::Matrix4 => "matrix4",
+        }
+    }
+
+    pub fn get_size(&self) -> usize{
+        match *self{
+            DataType::Matrix4 => 16,
+            _ => 1,
         }
     }
 }
@@ -53,6 +76,8 @@ impl DataType{
 pub enum SourceLayer{
     F32(Vec<f32>),
     I32(Vec<i32>),
+    Name(Vec<String>),
+    Matrix4(Vec<Matrix>),
 }
 
 impl SourceLayer{
@@ -60,6 +85,8 @@ impl SourceLayer{
         match *self{
             SourceLayer::F32(_) => "f32",
             SourceLayer::I32(_) => "i32",
+            SourceLayer::Name(_) => "name",
+            SourceLayer::Matrix4(_) => "matrix4",
         }
     }
 }
@@ -75,32 +102,18 @@ impl Source{
     pub fn parse(source:&Element, asset:&Asset) -> Result<Source,Error>{
         let id=source.get_attribute("id")?.clone();
 
-        let float_array=source.get_element("float_array")?;
-        let float_array_count=float_array.parse_attribute_as_usize("count")?;
-        let float_array_data=float_array.get_text()?;
-
         let accessor=source.get_element("technique_common")?.get_element("accessor")?;
         let accessor_count=accessor.parse_attribute_as_usize("count")?;
         let accessor_stride=accessor.parse_attribute_as_usize("stride")?;
 
-        let mut params=Self::get_params(&accessor, &id, asset)?;
+        let params=Self::read_params(&accessor, &id, asset)?;
+        let (vertex_format,short_vertex_format)=Self::generate_vertex_format(&params);
 
-        let (vertex_format,short_vertex_format)=Self::get_vertex_format(&params);
+        let (array,array_size) = Self::get_array_and_size(source)?;
 
-        let mut layers_data=Self::get_layers_data(
-            accessor_stride, accessor_count, float_array_data, float_array_count, &params
+        let mut layers=Self::read_layers_data(
+            accessor_stride, accessor_count, array, array_size, &params, asset
         )?;
-
-        let mut layers=HashMap::new();
-
-        for &(_,layer_type,_) in params.iter().rev(){
-            match layers.entry( String::from(layer_type.print_vertex_format()) ){
-                Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate layer with vertex_format \"{}\"",layer_type.print_vertex_format()) )),
-                Entry::Vacant(entry) => {
-                    entry.insert( layers_data.pop().unwrap() );
-                },
-            }
-        }
 
         Ok(
             Source{
@@ -112,7 +125,20 @@ impl Source{
         )
     }
 
-    fn get_params(accessor:&Element, id:&String, asset:&Asset) -> Result<Vec<(LayerType,LayerType,DataType)>,Error>{
+    fn get_array_and_size(source:&Element) -> Result<(&String, usize),Error> {
+        for data_element in source.children.iter() {
+            if data_element.name.ends_with("_array") {
+                let data=data_element.get_text()?;
+                let data_size=data_element.parse_attribute_as_usize("count")?;
+
+                return Ok( (data,data_size) );
+            }
+        }
+
+        Err( Error::Other(String::from("Source has no data(*_array)")) )
+    }
+
+    fn read_params(accessor:&Element, id:&String, asset:&Asset) -> Result<Vec<(LayerType,LayerType,DataType)>,Error>{
         let mut params=Vec::with_capacity(4);
 
         for param_element in accessor.children.iter(){
@@ -127,15 +153,20 @@ impl Source{
                     "R" => LayerType::R,
                     "G" => LayerType::G,
                     "B" => LayerType::B,
-                    _ => return Err(Error::Other( format!("Expected X, Y, Z, S, T, R, G or B but {} has been found",param_name_str) )),
+                    "JOINT" => LayerType::BoneName,
+                    "TRANSFORM" => LayerType::TransformMatrix,
+                    "WEIGHT" => LayerType::Weight,
+                    _ => LayerType::Other(String::from(param_name_str)),
                 };
 
-                let standard_layer_type=Self::get_standard_layer_type(param_name, asset);
+                let standard_layer_type=Self::get_standard_layer_type(&param_name, asset);
 
                 let param_data_type_str=param_element.get_attribute("type")?.as_str();
                 let param_type=match param_data_type_str{
                     "float" => DataType::F32,
-                    _ => return Err(Error::Other( format!("Expected float, but {} has been found",param_data_type_str) )),
+                    "name" => DataType::Name,
+                    "float4x4" => DataType::Matrix4,
+                    _ => return Err(Error::Other( format!("Expected float,name or float4x4 but {} has been found",param_data_type_str) )),
                 };
 
                 params.push((param_name, standard_layer_type, param_type));
@@ -149,8 +180,8 @@ impl Source{
         Ok(params)
     }
 
-    fn get_standard_layer_type(layer_type:LayerType, asset:&Asset) -> LayerType {
-        match layer_type {
+    fn get_standard_layer_type(layer_type:&LayerType, asset:&Asset) -> LayerType {
+        match *layer_type {
             LayerType::X => {
                 match asset.up_axis {
                     Axis::X => LayerType::Y,
@@ -172,20 +203,20 @@ impl Source{
                     Axis::Z => LayerType::Y,
                 }
             },
-            _ => layer_type
+            _ => layer_type.clone()
         }
     }
 
-    fn get_vertex_format(params:&Vec<(LayerType,LayerType,DataType)>) -> (String,String) {
+    fn generate_vertex_format(params:&Vec<(LayerType,LayerType,DataType)>) -> (String,String) {
         let mut vertex_format=String::new();
         let mut short_vertex_format=String::new();
 
-        for &(param_name,_,param_type) in params.iter().take(params.len()-1){
+        for &(ref param_name,_,ref param_type) in params.iter().take(params.len()-1){
             vertex_format.push_str( &format!("{}:{},",param_name.print_vertex_format(), param_type.print_data_type()) );
             short_vertex_format.push_str( &format!("{},",param_name.print_vertex_format()) );
         }
 
-        let &(param_name,_,param_type)=match params.iter().last(){
+        let &(ref param_name,_,ref param_type)=match params.iter().last(){
             Some(p) => p,
             None => {unreachable!()},
         };
@@ -196,71 +227,160 @@ impl Source{
         (vertex_format,short_vertex_format)
     }
 
-    fn get_layers_data(
+    fn read_layers_data(
         accessor_stride:usize,
         accessor_count:usize,
-        float_array_data:&String,
-        float_array_count:usize,
-        params:&Vec<(LayerType,LayerType,DataType)>
-    ) -> Result<Vec<SourceLayer>,Error> {
-        if accessor_stride!=params.len(){
-            return Err(Error::Other( format!("stride({})!=params.len({})", accessor_stride, params.len()) ));
+        array:&String,
+        array_size:usize,
+        params:&Vec<(LayerType,LayerType,DataType)>,
+        asset:&Asset
+    ) -> Result<HashMap<String,SourceLayer>,Error> {
+        let mut stride=0;
+        for &(_,_,ref data_type) in params.iter() {
+            stride+=data_type.get_size();
         }
 
-        if accessor_count*accessor_stride!=float_array_count{
-            return Err(Error::Other( format!("count({})*stride({})!=float_array_count({})", accessor_count, accessor_stride, float_array_count) ));
+        if accessor_stride!=stride{
+            return Err(Error::Other( format!("stride({})!=calculated stride({})", accessor_stride, stride) ));
+        }
+
+        if accessor_count*accessor_stride!=array_size{
+            return Err(Error::Other( format!("count({})*stride({})!=array_size({})", accessor_count, accessor_stride, array_size) ));
         }
 
         let mut layers_data=Vec::with_capacity(params.len());
 
-        for &(_,_,data_type) in params.iter(){
-            let layer_data=match data_type{
+        for &(_,_,ref data_type) in params.iter(){
+            let layer_data=match *data_type{
                 DataType::F32 => SourceLayer::F32( Vec::with_capacity(accessor_count) ),
                 DataType::I32 => SourceLayer::I32( Vec::with_capacity(accessor_count) ),
+                DataType::Name => SourceLayer::Name( Vec::with_capacity(accessor_count) ),
+                DataType::Matrix4 => SourceLayer::Matrix4(  Vec::with_capacity(accessor_count) ),
             };
 
             layers_data.push(layer_data);
         }
 
-        //read layer
-        let mut source_data_index=0;
-        for v in float_array_data.split(' ').filter(|v|*v!="").take(accessor_count*accessor_stride){
-            let layer_data=&mut layers_data[source_data_index];
+        let mut array_iter=ArrayIter::new(array, array_size, "source");
 
-            match *layer_data {
-                SourceLayer::F32( ref mut list) => {
-                    match v.parse::<f32>(){
-                        Ok ( f ) => list.push( f ),
-                        Err( _ ) => return Err(Error::ParseFloatError( String::from("Mesh data"), String::from(v)) ),
-                    }
-                },
-                SourceLayer::I32( ref mut list) => {
-                    match v.parse::<i32>(){
-                        Ok ( f ) => list.push( f ),
-                        Err( _ ) => return Err(Error::ParseIntError( String::from("Mesh data"), String::from(v)) ),
-                    }
-                },
-            }
+        for i in 0..accessor_count{
+            for j in 0..params.len() {
+                match layers_data[j] {
+                    SourceLayer::F32( ref mut list) =>
+                        list.push( array_iter.read_f32()? ),
+                    SourceLayer::I32( ref mut list) =>
+                        list.push( array_iter.read_i32()? ),
+                    SourceLayer::Name( ref mut list ) =>
+                        list.push( String::from(array_iter.read_str()?) ),
+                    SourceLayer::Matrix4( ref mut list ) => {
+                        let mut mat=[0.0;16];
+                        for k in 0..16 {
+                            mat[k]=array_iter.read_f32()?;
+                        }
 
-            source_data_index+=1;
-
-            if source_data_index==accessor_stride {
-                source_data_index=0;
+                        list.push( Matrix::from(mat, asset) );
+                    },
+                }
             }
         }
 
-        //check
-        for layer_data in layers_data.iter(){
-            let count=match *layer_data{
-                SourceLayer::F32(ref list) => list.len(),
-                SourceLayer::I32(ref list) => list.len(),
+        if asset.editor==Editor::Blender {//layer
+            //invert x axis(blender uses left-side coordination system)
+            for source_layer_index in 0..params.len() {
+                if params[source_layer_index].1==LayerType::X {
+                    match layers_data[source_layer_index]{
+                        SourceLayer::F32(ref mut list) => {
+                            for x in list.iter_mut() {
+                                *x=-*x;
+                            }
+                        },
+                        SourceLayer::I32(ref mut list) => {
+                            for x in list.iter_mut() {
+                                *x=-*x;
+                            }
+                        },
+                        _ => {},
+                    }
+                }
+            }
+        }
+
+        let mut layers=HashMap::new();
+
+        for &(_,ref layer_type,_) in params.iter().rev(){
+            match layers.entry( String::from(layer_type.print_vertex_format()) ){
+                Entry::Occupied(_) => return Err(Error::Other( format!("Duplicate layer with vertex_format \"{}\"",layer_type.print_vertex_format()) )),
+                Entry::Vacant(entry) => {
+                    entry.insert( layers_data.pop().unwrap() );
+                },
+            }
+        }
+
+        Ok(layers)
+    }
+}
+
+pub fn read_sources(element:&Element, asset:&Asset) -> Result<HashMap<String,Arc<Source>>,Error>{
+    //read sources
+    let mut sources=HashMap::new();
+
+    for source_element in element.children.iter(){
+        if source_element.name.as_str()=="source" {
+            let source=Source::parse(&source_element, asset)?;
+
+            match sources.entry(source.id.clone()){
+                Entry::Occupied(_) => return Err(Error::Other( format!("Duplicate source with id \"{}\"", &source.id) )),
+                Entry::Vacant(entry) => {
+                    entry.insert(Arc::new(source));
+                },
+            }
+        }
+    }
+
+    //find source synonyms
+    for source_synonym in element.children.iter(){
+        if source_synonym.name.as_str()=="vertices" {
+            let new_id=source_synonym.get_attribute("id")?;
+            let existing_id=source_synonym.get_element("input")?.get_attribute("source")?.trim_left_matches('#');
+
+            let source=match sources.get(existing_id){
+                Some(s) => s.clone(),
+                None => return Err(Error::Other( format!("Source with id \"{}\" does not exists", existing_id) )),
             };
 
-            if count!=accessor_count{
-                return Err(Error::Other( format!("Expected count {}, but {} has been read", accessor_count, count) ));
+            match sources.entry(new_id.clone()){
+                Entry::Occupied(_) => return Err(Error::Other( format!("Duplicate source synonym with id \"{}\"", new_id) )),
+                Entry::Vacant(entry) => {
+                    entry.insert(source);
+                },
             }
         }
-
-        Ok(layers_data)
     }
+
+    Ok(sources)
+}
+
+pub fn select_sources(element:&Element, sources:&HashMap<String,Arc<Source>>) -> Result<Vec<(String,Arc<Source>)>,Error>{
+    let mut sources_list=Vec::new();
+
+    for input_element in element.children.iter(){
+        if input_element.name.as_str()=="input" {
+            let source_semantic=input_element.get_attribute("semantic")?;
+            let source_id=input_element.get_attribute("source")?.trim_left_matches('#');
+            let offset=input_element.parse_attribute_as_usize("offset")?;
+
+            if offset!=sources_list.len(){
+                return Err(Error::Other( format!("Expected source offset {}, but {} have been found", sources_list.len(), offset) ));
+            }
+
+            let source=match sources.get(source_id){
+                Some(s) => s.clone(),
+                None => return Err(Error::Other( format!("Source with id \"{}\" does not exists", source_id) )),
+            };
+
+            sources_list.push((source_semantic.clone(),source));
+        }
+    }
+
+    Ok( sources_list )
 }

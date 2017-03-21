@@ -1,11 +1,14 @@
 use xmltree::Element;
 use Error;
+use StringExt;
 
 pub trait XMLElement{
     fn get_attribute(&self,name:&str) -> Result<&String,Error>;
     fn get_element(&self,name:&str) -> Result<&Element,Error>;
     fn get_text(&self) -> Result<&String,Error>;
     fn parse_text_as_f32(&self,name:&str) -> Result<f32,Error>;
+    fn parse_text_as_usize(&self,name:&str) -> Result<usize,Error>;
+    fn parse_attribute_as_f32(&self,name:&str) -> Result<f32,Error>;
     fn parse_attribute_as_usize(&self,name:&str) -> Result<usize,Error>;
 }
 
@@ -58,16 +61,18 @@ impl XMLElement for Element{
     }
 
     fn parse_text_as_f32(&self,name:&str) -> Result<f32,Error>{
-        match self.get_element(name)?.get_text()?.parse::<f32>(){
-            Ok(v) => Ok(v),
-            Err(_) => Err(Error::StringParseError( format!("Can not parse {} as f32",name) )),
-        }
+        self.get_element(name)?.get_text()?.as_str().parse_as_f32(name)
+    }
+
+    fn parse_text_as_usize(&self,name:&str) -> Result<usize,Error>{
+        self.get_element(name)?.get_text()?.as_str().parse_as_usize(name)
+    }
+
+    fn parse_attribute_as_f32(&self,name:&str) -> Result<f32,Error>{
+        self.get_attribute(name)?.as_str().parse_as_f32(name)
     }
 
     fn parse_attribute_as_usize(&self,name:&str) -> Result<usize,Error>{
-        match self.get_attribute(name)?.parse::<usize>(){
-            Ok(v) => Ok(v),
-            Err(_) => Err(Error::StringParseError( format!("Can not parse {} as usize",name) )),
-        }
+        self.get_attribute(name)?.as_str().parse_as_usize(name)
     }
 }

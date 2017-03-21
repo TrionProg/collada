@@ -19,6 +19,13 @@ pub struct Asset{
     pub modified:String,
     pub unit:Unit,
     pub up_axis:Axis,
+    pub editor:Editor,
+}
+
+#[derive(Copy,Clone,Eq,PartialEq)]
+pub enum Editor{
+    Blender,
+    Unknown,
 }
 
 impl Asset{
@@ -53,16 +60,26 @@ impl Asset{
             }
         };
 
-        Ok(
-            Asset{
-                created:created,
-                modified:modified,
-                unit:Unit{
-                    name:unit_name,
-                    ratio:unit_ratio,
-                },
-                up_axis:up_axis,
-            }
-        )
+        let contributor=asset.get_element("contributor")?;
+        let editor_str=contributor.get_element("authoring_tool")?.get_text()?;
+
+        let editor=if editor_str.starts_with("Blender") {
+            Editor::Blender
+        }else{
+            Editor::Unknown
+        };
+
+        let asset=Asset{
+            created:created,
+            modified:modified,
+            unit:Unit{
+                name:unit_name,
+                ratio:unit_ratio,
+            },
+            up_axis:up_axis,
+            editor:editor,
+        };
+
+        Ok( asset )
     }
 }

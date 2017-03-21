@@ -8,6 +8,10 @@ use std::sync::Arc;
 
 use Source;
 use Asset;
+use ArrayIter;
+
+use source::read_sources;
+use source::select_sources;
 
 pub struct Polygon{
     pub first_vertex_index:usize,
@@ -41,7 +45,7 @@ impl Mesh{
         meshes:&mut Vec<Arc<Mesh>>,
         asset:&Asset
     ) -> Result<(),Error>{
-        let all_sources=Mesh::read_sources(mesh, asset)?;
+        let all_sources=read_sources(mesh, asset)?;
 
         for polylist in mesh.children.iter(){
             if polylist.name.as_str()=="polylist"{
@@ -50,10 +54,11 @@ impl Mesh{
                     None => None,
                 };
 
-                let (sources, short_vertex_format, vertex_format)=Mesh::select_sources_and_generate_vertex_format(&polylist, &all_sources)?;
+                let sources=select_sources(&polylist,&all_sources)?;
+                let (short_vertex_format, vertex_format)=Self::generate_vertex_format(&polylist,&sources)?;
 
-                let (polygons,vertices_count)=Mesh::read_polygons(&polylist)?;
-                let vertex_indices=Mesh::read_vertices(&polylist, vertices_count, &sources)?;
+                let (polygons,vertices_count)=Self::read_polygons(&polylist)?;
+                let vertex_indices=Self::read_vertices(&polylist, vertices_count, &sources)?;
 
                 let mesh=Mesh{
                     id:*mesh_id,
@@ -75,108 +80,45 @@ impl Mesh{
         Ok(())
     }
 
-    pub fn read_sources(mesh:&Element, asset:&Asset) -> Result<HashMap<String,Arc<Source>>,Error>{
-        //read sources
-        let mut sources=HashMap::new();
-
-        for source_element in mesh.children.iter(){
-            if source_element.name.as_str()=="source" {
-                let source=Source::parse(&source_element, asset)?;
-
-                match sources.entry(source.id.clone()){
-                    Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate source with id \"{}\"", &source.id) )),
-                    Entry::Vacant(entry) => {
-                        entry.insert(Arc::new(source));
-                    },
-                }
-            }
-        }
-
-        //find source synonyms
-        for source_synonym in mesh.children.iter(){
-            if source_synonym.name.as_str()=="vertices" {
-                let new_id=source_synonym.get_attribute("id")?;
-                let existing_id=source_synonym.get_element("input")?.get_attribute("source")?.trim_left_matches('#');
-
-                let source=match sources.get(existing_id){
-                    Some(s) => s.clone(),
-                    None => return Err(Error::Other( format!("Source with id \"{}\" does not exists", existing_id) )),
-                };
-
-                match sources.entry(new_id.clone()){
-                    Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate source synonym with id \"{}\"", new_id) )),
-                    Entry::Vacant(entry) => {
-                        entry.insert(source);
-                    },
-                }
-            }
-        }
-
-        Ok(sources)
-    }
-
-    pub fn select_sources_and_generate_vertex_format(polylist:&Element, sources:&HashMap<String,Arc<Source>>) -> Result<(Vec<(String,Arc<Source>)>,String,String),Error>{
-        let mut poly_sources=Vec::new();
+    pub fn generate_vertex_format(polylist:&Element, sources_list:&Vec<(String,Arc<Source>)>) -> Result<(String,String),Error>{
         let mut vertex_format=String::new();
         let mut short_vertex_format=String::new();
 
-        for input_element in polylist.children.iter(){
-            if input_element.name.as_str()=="input" {
-                let source_semantic=input_element.get_attribute("semantic")?;
-                let source_id=input_element.get_attribute("source")?.trim_left_matches('#');
-                let offset=input_element.parse_attribute_as_usize("offset")?;
-
-                if offset!=poly_sources.len(){
-                    return Err(Error::Other( format!("Expected source offset {}, but {} have been found", poly_sources.len(), offset) ));
-                }
-
-                let source=match sources.get(source_id){
-                    Some(s) => s.clone(),
-                    None => return Err(Error::Other( format!("Source with id \"{}\" does not exists", source_id) )),
-                };
-
-                if vertex_format.as_str()!=""{
-                    vertex_format.push(' ');
-                }
-                vertex_format.push_str(&format!("{}:&({})",source_semantic,source.vertex_format));
-
-                if short_vertex_format.as_str()!=""{
-                    short_vertex_format.push(' ');
-                }
-                short_vertex_format.push_str(&format!("&({})",source.short_vertex_format));
-
-                poly_sources.push((source_semantic.clone(),source));
+        for &(ref name, ref source) in sources_list.iter(){
+            if vertex_format.as_str()!=""{
+                vertex_format.push(' ');
             }
+            vertex_format.push_str(&format!("{}:&({})",name,source.vertex_format));
+
+            if short_vertex_format.as_str()!=""{
+                short_vertex_format.push(' ');
+            }
+            short_vertex_format.push_str(&format!("&({})",source.short_vertex_format));
         }
 
-        Ok((poly_sources, short_vertex_format, vertex_format))
+        Ok( (short_vertex_format, vertex_format) )
     }
 
     pub fn read_polygons(polylist:&Element) -> Result<(Vec<Polygon>,usize),Error>{//read polygons(<vcount> tag)
-        let poly_count=polylist.parse_attribute_as_usize("count")?;
+        let polygons_count=polylist.parse_attribute_as_usize("count")?;
         let polygons_vcount=polylist.get_element("vcount")?.get_text()?;
 
-        let mut polygons=Vec::with_capacity(poly_count);
+        let mut polygons=Vec::with_capacity(polygons_count);
         let mut vertices_count=0;
 
-        for vertices_per_poly_count in polygons_vcount.split(' ').filter(|c|*c!="").take(poly_count) {
-            let vppc=match vertices_per_poly_count.parse::<usize>(){
-                Ok ( c ) => c,
-                Err( _ ) => return Err(Error::Other( format!("Vertices per polygon {} as usize", vertices_per_poly_count) )),
-            };
+        let mut array_iter=ArrayIter::new(polygons_vcount, polygons_count, "polygons");
+
+        for i in 0..polygons_count {
+            let vertices_per_polygon=array_iter.read_usize()?;
 
             polygons.push(
                 Polygon{
                     first_vertex_index:vertices_count,
-                    vertices_count:vppc,
+                    vertices_count:vertices_per_polygon,
                 }
             );
 
-            vertices_count+=vppc;
-        }
-
-        if polygons.len()!=poly_count {
-            return Err(Error::Other( format!("Expected {} polygons, but {} has been read", poly_count, polygons.len()) ));
+            vertices_count+=vertices_per_polygon;
         }
 
         Ok((polygons,vertices_count))
@@ -184,6 +126,7 @@ impl Mesh{
 
     pub fn read_vertices(polylist:&Element, vertices_count:usize, sources:&Vec<(String,Arc<Source>)>) -> Result<HashMap<String,Arc<VertexIndices>>,Error>{//read vertices(<p> tag)
         let sources_count=sources.len();
+
         let source_data_indices_per_vertex=polylist.get_element("p")?.get_text()?;
 
         let mut vertex_indices_indices=Vec::with_capacity(sources_count);
@@ -191,25 +134,13 @@ impl Mesh{
             vertex_indices_indices.push(Vec::with_capacity(vertices_count));
         }
 
-        let mut source_data_index=0;
-        for data_index_per_vertex in source_data_indices_per_vertex.split(' ').filter(|c|*c!="").take(vertices_count*sources_count) {
-            let dipv=match data_index_per_vertex.parse::<usize>(){
-                Ok ( c ) => c,
-                Err( _ ) => return Err(Error::Other( format!("source data index per vertex {} as usize", data_index_per_vertex) )),
-            };
+        let mut array_iter=ArrayIter::new(source_data_indices_per_vertex, vertices_count*sources_count, "vertex indices");
 
-            vertex_indices_indices[source_data_index].push(dipv);
+        for i in 0..vertices_count {
+            for j in 0..sources_count {
+                let data_index_per_vertex=array_iter.read_usize()?;
 
-            source_data_index+=1;
-
-            if source_data_index==sources_count {
-                source_data_index=0;
-            }
-        }
-
-        for vertex_indices in vertex_indices_indices.iter(){
-            if vertex_indices.len()!=vertices_count {
-                return Err(Error::Other( format!("Expected {} indices, but {} has been read", vertices_count, vertex_indices.len()) ));
+                vertex_indices_indices[j].push(data_index_per_vertex);
             }
         }
 
@@ -217,7 +148,7 @@ impl Mesh{
 
         for &(ref vertex_layer_name, ref source) in sources.iter().rev(){
             match vertex_indices.entry(vertex_layer_name.clone()){
-                Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate source with vertex_format \"{}\"",vertex_layer_name) )),
+                Entry::Occupied(_) => return Err(Error::Other( format!("Duplicate source with vertex_format \"{}\"",vertex_layer_name) )),
                 Entry::Vacant(entry) => {
                     let vi=VertexIndices{
                         source:source.clone(),

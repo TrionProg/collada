@@ -5,6 +5,7 @@ use xmltree::Element;
 use Asset;
 use Camera;
 use Geometry;
+//use Skin;
 use Scene;
 
 use std::path::Path;
@@ -18,12 +19,14 @@ use std::sync::Arc;
 
 use camera::parse_cameras;
 use geometry::parse_geometries;
+//use controller::parse_controllers;
 use scene::parse_scenes;
 
 pub struct Document{
     pub asset:Asset,
     pub cameras:HashMap<String,Arc<Camera>>,
     pub geometries:HashMap<String,Arc<Geometry>>,
+    //pub skins:HashMap<String,Vec<Arc<Skin>> >,
     pub scenes:HashMap<String,Arc<Scene>>,
 }
 
@@ -57,11 +60,15 @@ impl Document{
 
         let cameras=parse_cameras(&root)?;
         let geometries=parse_geometries(&root, &asset)?;
+        //let skins=parse_controllers(&root, &asset)?;
+
+        println!("------");
 
         let mut document=Document{
             asset:asset,
             cameras:cameras,
             geometries:geometries,
+            //skins:skins,
             scenes:HashMap::new(),
         };
 
