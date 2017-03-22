@@ -30,8 +30,8 @@ pub use mesh::{Mesh,VertexIndices};
 mod geometry;
 pub use geometry::Geometry;
 
-//mod controller;
-//pub use controller::Skin;
+mod controller;
+pub use controller::{Controller,Skin,BoneIndices};
 
 mod location;
 pub use location::{Position,Scale,Euler,Matrix};
@@ -41,6 +41,9 @@ pub use node::Node;
 
 mod skeleton;
 pub use skeleton::{Bone,Skeleton};
+
+mod animation;
+pub use animation::Animation;
 
 mod scene;
 pub use scene::Scene;

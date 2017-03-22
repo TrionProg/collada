@@ -14,6 +14,7 @@ use Document;
 use Camera;
 use Geometry;
 use Skeleton;
+use Skin;
 
 pub struct Scene{
     pub id:String,
@@ -24,7 +25,7 @@ pub struct Scene{
 }
 
 impl Scene{
-    pub fn parse(scene:&Element, document:&mut Document) -> Result<Scene,Error>{
+    pub fn parse(scene:&Element, document:&mut Document, skins_by_id:&HashMap<String,Arc<Skin>>) -> Result<Scene,Error>{
         let id=scene.get_attribute("id")?.clone();
         let name=scene.get_attribute("name")?.clone();
 
@@ -34,7 +35,7 @@ impl Scene{
 
         for node_element in scene.children.iter(){
             if node_element.name.as_str()=="node" {
-                parse_node(node_element, document, None, &mut geometries, &mut cameras, &mut skeletons)?;
+                parse_node(node_element, document, skins_by_id, None, &mut geometries, &mut cameras, &mut skeletons)?;
             }
         }
 
@@ -107,12 +108,12 @@ impl Scene{
     }
 }
 
-pub fn parse_scenes(root:&Element, document:&mut Document) -> Result<(), Error>{
+pub fn parse_scenes(root:&Element, document:&mut Document, skins_by_id:HashMap<String,Arc<Skin>>) -> Result<(), Error>{
     let scenes_element=root.get_element("library_visual_scenes")?;
 
     for scene_element in scenes_element.children.iter(){
         if scene_element.name.as_str()=="visual_scene" {
-            let scene=Scene::parse(scene_element, document)?;
+            let scene=Scene::parse(scene_element, document, &skins_by_id)?;
 
             match document.scenes.entry(scene.id.clone()){
                 Entry::Occupied(_) => return Err(Error::Other( format!("Dublicate scene with id \"{}\"", &scene.id) )),

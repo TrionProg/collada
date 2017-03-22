@@ -7,57 +7,222 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 
 use Asset;
-use Matrix4;
+use Source;
+use Matrix;
+use ArrayIter;
+use Bone;
+
+use source::read_sources;
+use source::select_sources;
+
+pub enum Controller{
+    Model,
+    Bone(Arc<Bone>),
+    Skin(Arc<Skin>),
+}
+
+impl Controller{
+    pub fn print(&self) {
+        match *self {
+            Controller::Model => println!("Model"),
+            Controller::Bone( ref bone ) => println!("Bone \"{}\"", bone.id),
+            Controller::Skin( ref skin ) => println!("Skin \"{}\"", skin.id),
+        }
+    }
+}
+
+pub struct BonesPerVertex{
+    pub first_bone_index:usize,
+    pub bones_count:usize,
+}
 
 pub struct Skin {
-    geometry_id:String,
-    animation_id:String,
-    bone_names:Vec<String>,
-    bone_matrixes:Vec<Martix4>,
-    bones_per_vertex:Vec<Vec<(usize,f32)>>,
+    pub id:String,
+    pub geometry_id:String,
+    pub sources:Vec<(String,Arc<Source>)>,
+    pub additional_sources:HashMap<String,Arc<Source>>,
+    pub bone_indices:HashMap<String,Arc<BoneIndices>>,
+}
+
+pub struct BoneIndices{
+    pub source:Arc<Source>,
+    pub indices:Vec<usize>,
 }
 
 impl Skin {
-    pub fn parse(skin_element:&Element, animation_id:String, asset:&Asset) -> Result<Self, Error> {
+    pub fn parse(skin_element:&Element, id:String, asset:&Asset) -> Result<Self, Error> {
         let geometry_id=skin_element.get_attribute("source")?.trim_left_matches('#').to_string();
 
-        let matrix=Matrix::parse( bone_element.get_element("bind_shape_matrix")?.get_text()?, &document.asset )?;
+        let matrix=Matrix::parse( skin_element.get_element("bind_shape_matrix")?.get_text()?, asset )?;
 
-        let (src_names_of_bones, src_weights, src_matrixes)=Self::read_sources(skin_element, asset)?;
+        let all_sources=read_sources(skin_element, asset)?;
 
         let vertex_weight_element=skin_element.get_element("vertex_weights")?;
-        let vertices_count=vertex_weight_element.get_attribute_as_usize("count")?;
+        let joints_element=skin_element.get_element("joints")?;
 
-        let mut sources_order=Self::read_sources_order(vertex_weight_element)?;
-        let (bones_count_per_vertex,max_bones_count_per_vertex)=Self::read_bones_count_per_vertex(vertex_weight_element, vertices_count)?;
+        let vertices_count=vertex_weight_element.parse_attribute_as_usize("count")?;
+
+        let sources=select_sources(&vertex_weight_element,&all_sources)?;
+        let additional_sources=Self::select_additional_sources(&joints_element,&all_sources)?;
+
+        let (bones_count_per_vertex,bones_indices_count)=Self::read_bones_count_per_vertex(&vertex_weight_element)?;
+        let bone_indices=Self::read_bone_indices(&vertex_weight_element, bones_indices_count, &sources)?;
+
+        let skin=Skin{
+            id:id,
+            geometry_id:geometry_id,
+            sources:sources,
+            additional_sources:additional_sources,
+            bone_indices:bone_indices,
+        };
+
+        Ok( skin )
+    }
+
+    fn read_bones_count_per_vertex(vertex_weight_element:&Element) -> Result<(Vec<BonesPerVertex>,usize),Error>{//read polygons(<vcount> tag)
+        let vertices_count=vertex_weight_element.parse_attribute_as_usize("count")?;
+        let vertices_bone_count=vertex_weight_element.get_element("vcount")?.get_text()?;
+
+        let mut vertices=Vec::with_capacity(vertices_count);
+        let mut bones_indices_count=0;
+
+        let mut array_iter=ArrayIter::new(vertices_bone_count, vertices_count, "polygons");
+
+        for i in 0..vertices_count {
+            let bones_per_vertex=array_iter.read_usize()?;
+
+            vertices.push(
+                BonesPerVertex{
+                    first_bone_index:bones_indices_count,
+                    bones_count:bones_per_vertex,
+                }
+            );
+
+            bones_indices_count+=bones_per_vertex;
+        }
+
+        Ok((vertices,bones_indices_count))
+    }
+
+    fn read_bone_indices(vertex_weight_element:&Element, bones_indices_count:usize, sources:&Vec<(String,Arc<Source>)>) -> Result<HashMap<String,Arc<BoneIndices>>,Error>{//read vertices(<p> tag)
+        let sources_count=sources.len();
+
+        let source_data_indices_per_bone=vertex_weight_element.get_element("v")?.get_text()?;
+
+        let mut bone_indices_indices=Vec::with_capacity(sources_count);
+        for i in 0..sources_count{
+            bone_indices_indices.push(Vec::with_capacity(bones_indices_count));
+        }
+
+        let mut array_iter=ArrayIter::new(source_data_indices_per_bone, bones_indices_count*sources_count, "bone indices");
+
+        for i in 0..bones_indices_count {
+            for j in 0..sources_count {
+                let data_index_per_bone=array_iter.read_usize()?;
+
+                bone_indices_indices[j].push(data_index_per_bone);
+            }
+        }
+
+        let mut bone_indices=HashMap::new();
+
+        for &(ref source_name, ref source) in sources.iter().rev(){
+            match bone_indices.entry(source_name.clone()){
+                Entry::Occupied(_) => return Err(Error::Other( format!("Duplicate source with name \"{}\"",source_name) )),
+                Entry::Vacant(entry) => {
+                    let bi=BoneIndices{
+                        source:source.clone(),
+                        indices:bone_indices_indices.pop().unwrap(),
+                    };
+
+                    entry.insert( Arc::new(bi) );
+                },
+            }
+        }
+
+        Ok(bone_indices)
+    }
+
+    fn select_additional_sources(element:&Element, sources:&HashMap<String,Arc<Source>>) -> Result<HashMap<String,Arc<Source>>,Error>{
+        let mut sources_list=HashMap::new();
+
+        for input_element in element.children.iter(){
+            if input_element.name.as_str()=="input" {
+                let source_semantic=input_element.get_attribute("semantic")?;
+                let source_id=input_element.get_attribute("source")?.trim_left_matches('#');
+
+                let source=match sources.get(source_id){
+                    Some(s) => s.clone(),
+                    None => return Err(Error::Other( format!("Source with id \"{}\" does not exists", source_id) )),
+                };
+
+                match sources_list.entry(source_semantic.clone()) {
+                    Entry::Occupied(_) =>
+                        return Err( Error::Other(format!("Duplicate bone additional source with name \"{}\"",source_semantic)) ),
+                    Entry::Vacant(entry) => {
+                        entry.insert(source.clone());
+                    },
+                }
+            }
+        }
+
+        Ok( sources_list )
+    }
+
+    /*
+
+    fn get_sources_order(sources:&Vec<(String,Arc<Source>)>) -> Vec<SourceOrder> {
+        let mut sources=select_sources(&vertex_weight_element,&all_sources)?;
+
+        let mut sources_order=Vec::with_capacity(sources.len());
+        for &(ref source_name, _) in sources.iter() {
+            let source_order=match source_name.as_str() {
+                "JOINT" => SourceOrder::BoneIndex,
+                "WEIGHT" => SourceOrder::Weight,
+                _ => SourceOrder::Ignore,
+            };
+
+            sources_order.push(source_order);
+        }
+
+        sources_order
+    }
+
+    fn read_bones_per_vertex(vertex_weight_element:&Element, vertices_count:usize, sources:&Vec<(String,Arc<Source>)>) -> Result<Vec<Vec<(usize,f32)>>, Error>{//read vertices(<p> tag)
+        let sources_count=sources.len();
+
+        let data=vertex_weight_element.get_element("v")?.get_text()?;
 
         let mut bones_per_vertex=Vec::with_capacity(max_bones_count_per_vertex);
         for i in 0..max_bones_count_per_vertex {
             bones_per_vertex.push(Vec::with_capacity(vertices_count));
         }
 
-        let data=vertex_weight_element.get_element("v")?.get_text()?;
-        let mut data_iter=data.split(' ').filter(|n|*n!="");
+        let mut array_iter=ArrayIter::new(source_data_indices_per_vertex, vertices_count*sources_count, "bones per vertexes");
 
         for i in 0..vertices_count {
             for j in 0..bones_count_per_vertex[i] {
                 let mut bone_index=0;
                 let mut bone_weight=0.0;
 
-                for source_order in 0..sources_order {
-                    let v=data_iter.next() {
-                        Some( v ) => v,
-                        None => return Err(Error::Other( String::from("not all values of bone data have been read") )),
-                    };
-
-                    let index=match v.parse::<usize>(){
-                        Ok ( i ) => i,
-                        Err( _ ) => return Err(Error::ParseIntError( String::from("bone data value"), String::from(v)) ),
-                    };
+                for (source,source_order) in 0..sources.iter().zip(sources_order.iter()) {
+                    let index=array_iter.read_usize()?;
 
                     match *source_order {
                         SourceOrder::BoneIndex => bone_index=i,
-                        SourceOrder::BoneWeight => bone_weight=src_weights[i],
+                        SourceOrder::BoneWeight => {
+                            let weight_layer=match source.layers.get("WEIGHT") {
+                                Some( ref weight_layer ) => {
+                                    match *weight_layer {
+                                        SourceLayer::F32 ( ref wl ) => wl,
+                                        _ => return Err( Error::Other("layer WEIGHT of bone weight source must have float type") ),
+                                    }
+                                },
+                                None => return Err( Error::Other("Bone weight source must have WEIGHT layer") ),
+                            };
+
+                            bone_weight = weight_layer[i];
+                        },
                         SourceOrder::Ignore => {},
                     }
                 }
@@ -70,16 +235,34 @@ impl Skin {
             }
         }
 
-        let skin=Skin{
-            geometry_id:geometry_id;
-            animation_id:animation_id;
-            bone_names:src_names_of_bones,
-            bone_matrixes:src_matrixes,
-            bones_per_vertex:bones_per_vertex,
+        Ok(bones_per_vertex)
+    }
+
+    fn get_bone_names_and_matrixes(sources:&HashMap<String,Arc<Source>>, additional_sources:&HashMap<String,Arc<Source>>) -> Result<Vec<(String,Matrix)>,Error> {
+        let bone_names=match sourses.get("JOINT") {
+            Some( ref source ) => {
+                match source.layers.get("JOINT") {
+                    Some( ref weight_layer ) => {
+                        match *weight_layer {
+                            SourceLayer::Name ( ref wl ) => wl,
+                            _ => return Err( Error::Other("layer WEIGHT of bone weight source must have float type") ),
+                        }
+                    },
+                    None => return Err( Error::Other("Bone weight source must have WEIGHT layer") ),
+                }
+            },
+            None => return Err( Error::Other("Bone weight source must have WEIGHT layer") ),
         };
 
-        Ok( skin )
-    }
+        let bone_matrixes=match source.layers.get("JOINT") {
+            Some( ref weight_layer ) => {
+                match *weight_layer {
+                    SourceLayer::F32 ( ref wl ) => wl,
+                    _ => return Err( Error::Other("layer WEIGHT of bone weight source must have float type") ),
+                }
+            },
+            None => return Err( Error::Other("Bone weight source must have WEIGHT layer") ),
+        };
 
     fn read_sources_order(vertex_weight_element:&Element) -> Result<Vec<SourceOrder>,Error> {
         let mut sources_order=Vec::new();
@@ -255,39 +438,53 @@ impl Skin {
 
         Ok( weights )
     }
+    */
 }
 
-pub fn parse_controllers(root:&Element, asset:&Asset) -> Result< HashMap<String,Vec<Arc<Skin>> >, Error>{
+pub fn parse_controllers(root:&Element, asset:&Asset) -> Result< (HashMap<String,Arc<Skin>>,HashMap<String,Arc<Skin>>), Error>{
     let controllers_element=root.get_element("library_controllers")?;
 
     let mut skins=HashMap::new();
+    let mut skins_by_id=HashMap::new();
 
     for controller_element in controllers_element.children.iter(){
         if controller_element.name.as_str()=="controller" {
-            let animation_id=controller_element.get_attribute("id")?;
+            let controller_id=controller_element.get_attribute("id")?.clone();
 
             for skin_element in controller_element.children.iter() {
-                let skin=Skin::parse(skin_element, animation_id.clone(), asset)?;
+                if skin_element.name.as_str()=="skin" {
+                    let skin=Arc::new( Skin::parse(skin_element, controller_id, asset)? );
 
-                match skins.entry(skin.geometry_id.clone()){
-                    Entry::Occupied(entry) =>
-                        entry.get_mut().push(Arc::new(skin)),
-                    Entry::Vacant(entry) => {
-                        let mut skins=Vec::with_capacity(1);
-                        skins.push(Arc::new(skin));
+                    match skins_by_id.entry(skin.id.clone()){
+                        Entry::Occupied(_) =>
+                            return Err(Error::Other( format!("Skin with id \"{}\" already exists",&skin.id) )),
+                        Entry::Vacant(entry) => {
+                            entry.insert(skin.clone());
+                        },
+                    }
 
-                        entry.insert(skins);
-                    },
+                    match skins.entry(skin.geometry_id.clone()){
+                        Entry::Occupied(_) =>
+                            return Err(Error::Other( format!("Geometry with id \"{}\" already has skin",&skin.geometry_id) )),
+                        Entry::Vacant(entry) => {
+                            entry.insert(skin);
+                        },
+                    }
+
+                    break;
                 }
             }
         }
     }
 
-    Ok(skins)
+    Ok( (skins, skins_by_id) )
 }
 
+/*
 enum SourceOrder {
     BoneIndex,
     BoneWeight,
     Ignore,
 }
+
+*/

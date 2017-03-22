@@ -57,8 +57,8 @@ impl Mesh{
                 let sources=select_sources(&polylist,&all_sources)?;
                 let (short_vertex_format, vertex_format)=Self::generate_vertex_format(&polylist,&sources)?;
 
-                let (polygons,vertices_count)=Self::read_polygons(&polylist)?;
-                let vertex_indices=Self::read_vertices(&polylist, vertices_count, &sources)?;
+                let (polygons,vertex_indices_count)=Self::read_polygons(&polylist)?;
+                let vertex_indices=Self::read_vertex_indices(&polylist, vertex_indices_count, &sources)?;
 
                 let mesh=Mesh{
                     id:*mesh_id,
@@ -104,7 +104,7 @@ impl Mesh{
         let polygons_vcount=polylist.get_element("vcount")?.get_text()?;
 
         let mut polygons=Vec::with_capacity(polygons_count);
-        let mut vertices_count=0;
+        let mut vertex_indices_count=0;
 
         let mut array_iter=ArrayIter::new(polygons_vcount, polygons_count, "polygons");
 
@@ -113,30 +113,30 @@ impl Mesh{
 
             polygons.push(
                 Polygon{
-                    first_vertex_index:vertices_count,
+                    first_vertex_index:vertex_indices_count,
                     vertices_count:vertices_per_polygon,
                 }
             );
 
-            vertices_count+=vertices_per_polygon;
+            vertex_indices_count+=vertices_per_polygon;
         }
 
-        Ok((polygons,vertices_count))
+        Ok((polygons,vertex_indices_count))
     }
 
-    pub fn read_vertices(polylist:&Element, vertices_count:usize, sources:&Vec<(String,Arc<Source>)>) -> Result<HashMap<String,Arc<VertexIndices>>,Error>{//read vertices(<p> tag)
+    pub fn read_vertex_indices(polylist:&Element, vertex_indices_count:usize, sources:&Vec<(String,Arc<Source>)>) -> Result<HashMap<String,Arc<VertexIndices>>,Error>{//read vertices(<p> tag)
         let sources_count=sources.len();
 
         let source_data_indices_per_vertex=polylist.get_element("p")?.get_text()?;
 
         let mut vertex_indices_indices=Vec::with_capacity(sources_count);
         for i in 0..sources_count{
-            vertex_indices_indices.push(Vec::with_capacity(vertices_count));
+            vertex_indices_indices.push(Vec::with_capacity(vertex_indices_count));
         }
 
-        let mut array_iter=ArrayIter::new(source_data_indices_per_vertex, vertices_count*sources_count, "vertex indices");
+        let mut array_iter=ArrayIter::new(source_data_indices_per_vertex, vertex_indices_count*sources_count, "vertex indices");
 
-        for i in 0..vertices_count {
+        for i in 0..vertex_indices_count {
             for j in 0..sources_count {
                 let data_index_per_vertex=array_iter.read_usize()?;
 
@@ -146,9 +146,9 @@ impl Mesh{
 
         let mut vertex_indices=HashMap::new();
 
-        for &(ref vertex_layer_name, ref source) in sources.iter().rev(){
-            match vertex_indices.entry(vertex_layer_name.clone()){
-                Entry::Occupied(_) => return Err(Error::Other( format!("Duplicate source with vertex_format \"{}\"",vertex_layer_name) )),
+        for &(ref source_name, ref source) in sources.iter().rev(){
+            match vertex_indices.entry(source_name.clone()){
+                Entry::Occupied(_) => return Err(Error::Other( format!("Duplicate source with name \"{}\"",source_name) )),
                 Entry::Vacant(entry) => {
                     let vi=VertexIndices{
                         source:source.clone(),

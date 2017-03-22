@@ -15,18 +15,20 @@ use Asset;
 use Axis;
 use Editor;
 use Node;
+use Skin;
 
 use Matrix;
 
 pub struct Skeleton{
-    bones_array:Vec<Arc<Bone>>,
-    bones:HashMap<String,Arc<Bone>>,
+    pub bones_array:Vec<Arc<Bone>>,
+    pub bones:HashMap<String,Arc<Bone>>,
 }
 
 impl Skeleton {
     pub fn parse(
         root_bone_element:&Element,
         document:&mut Document,
+        skins_by_id:&HashMap<String,Arc<Skin>>,
         geometries:&mut HashMap<String,Node<Geometry>>,
         cameras:&mut HashMap<String,Node<Camera>>,
         skeletons:&mut HashMap<String,Node<Skeleton>>,
@@ -34,7 +36,7 @@ impl Skeleton {
         let mut bones_array=Vec::new();
         let mut bones=HashMap::new();
 
-        Bone::parse(root_bone_element, document, None, geometries, cameras, skeletons, &mut bones_array, &mut bones)?;
+        Bone::parse(root_bone_element, document, skins_by_id, None, geometries, cameras, skeletons, &mut bones_array, &mut bones)?;
 
         let skeleton=Skeleton{
             bones_array:bones_array,
@@ -46,19 +48,20 @@ impl Skeleton {
 }
 
 pub struct Bone{
-    id:String,
-    sid:String,
-    name:String,
-    index:usize,
-    parent:Option<usize>,
+    pub id:String,
+    pub sid:String,
+    pub name:String,
+    pub index:usize,
+    pub parent:Option<usize>,
 
-    matrix:Matrix,
+    pub matrix:Matrix,
 }
 
 impl Bone {
     pub fn parse(
         bone_element:&Element,
         document:&mut Document,
+        skins_by_id:&HashMap<String,Arc<Skin>>,
         parent:Option<usize>,
         geometries:&mut HashMap<String,Node<Geometry>>,
         cameras:&mut HashMap<String,Node<Camera>>,
@@ -94,9 +97,9 @@ impl Bone {
                 let node_type=node_element.get_attribute("type")?;
 
                 if node_type.as_str()=="JOINT" {
-                    Bone::parse(node_element, document, Some(index), geometries, cameras, skeletons, bones_array, bones)?;
+                    Bone::parse(node_element, document, skins_by_id, Some(index), geometries, cameras, skeletons, bones_array, bones)?;
                 }else{
-                    parse_node(node_element, document, Some(bone.clone()), geometries, cameras, skeletons)?;
+                    parse_node(node_element, document, skins_by_id, Some(bone.clone()), geometries, cameras, skeletons)?;
                 }
             }
         }
