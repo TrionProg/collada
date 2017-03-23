@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use Mesh;
 use Asset;
+use TreePrinter;
 
 pub struct Geometry{
     pub id:String,
@@ -37,23 +38,17 @@ impl Geometry{
         )
     }
 
-    pub fn print_tree(&self, last_geometry:bool){
-        use print_branch;
-        use print_tab;
-
-        print_tab(false);
-        print_branch(last_geometry);
+    pub fn print(&self, printer:TreePrinter){
         println!("Geometry id:\"{}\" name:\"{}\"",self.id,self.name);
 
-        if self.meshes.len()>1 {
-            for mesh in self.meshes.iter().take(self.meshes.len()-1){
-                mesh.print_tree(last_geometry,false);
-            }
-        }
+        self.print_meshes( printer.new_branch(true) );
+    }
 
-        match self.meshes.iter().last(){
-            Some(mesh) => mesh.print_tree(last_geometry,true),
-            None => {},
+    fn print_meshes(&self, printer:TreePrinter) {
+        println!("Meshes");
+
+        for (last,mesh) in self.meshes.iter().clone().enumerate().map(|i| (i.0==self.meshes.len()-1,i.1) ){
+            mesh.print( printer.new_branch(last) );
         }
     }
 }

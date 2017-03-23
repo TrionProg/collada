@@ -8,5 +8,5 @@ fn main(){
         Err(e) => panic!("{}",e),
     };
 
-    document.print_tree();
+    document.print();
 }

@@ -7,7 +7,9 @@ use Camera;
 use Geometry;
 use Animation;
 use Skin;
+use Skeleton;
 use Scene;
+use TreePrinter;
 
 use std::path::Path;
 
@@ -30,6 +32,7 @@ pub struct Document{
     pub geometries:HashMap<String,Arc<Geometry>>,
     pub skins:HashMap<String,Arc<Skin>>,
     pub animations:HashMap<String,Arc<Animation>>,
+    pub skeletons:HashMap<String,Arc<Skeleton>>,
     pub scenes:HashMap<String,Arc<Scene>>,
 }
 
@@ -72,6 +75,7 @@ impl Document{
             geometries:geometries,
             animations:animations,
             skins:skins,
+            skeletons:HashMap::new(),
             scenes:HashMap::new(),
         };
 
@@ -80,37 +84,54 @@ impl Document{
         Ok(document)
     }
 
-    pub fn print_tree(&self){
-        use print_branch;
-
+    pub fn print(&self){
+        let mut printer=TreePrinter::new();
         println!("Document");
 
-        print_branch(false);
+        self.print_geometries( printer.new_branch(false) );
+        self.print_skeletons( printer.new_branch(false) );
+        self.print_animations( printer.new_branch(false) );
+        self.print_skins( printer.new_branch(false) );
+        self.print_scenes( printer.new_branch(true) );
+    }
+
+    fn print_geometries(&self, printer:TreePrinter) {
         println!("Geometries");
 
-        if self.geometries.len()>1{
-            for (_,geometry) in self.geometries.iter().take(self.geometries.len()-1){
-                geometry.print_tree(false);
-            }
+        for (last,(_,geometry)) in self.geometries.iter().clone().enumerate().map(|i| (i.0==self.geometries.len()-1,i.1) ){
+            geometry.print( printer.new_branch(last) );
         }
+    }
 
-        match self.geometries.iter().last(){
-            Some((_,geometry)) => geometry.print_tree(true),
-            None => {},
+    fn print_skeletons(&self, printer:TreePrinter) {
+        println!("Skeletons");
+
+        for (last,(_,skeleton)) in self.skeletons.iter().clone().enumerate().map(|i| (i.0==self.skeletons.len()-1,i.1) ){
+            skeleton.print( printer.new_branch(last) );
         }
+    }
 
-        print_branch(true);
+    fn print_animations(&self, printer:TreePrinter) {
+        println!("Animations");
+
+        for (last,(_,animation)) in self.animations.iter().clone().enumerate().map(|i| (i.0==self.animations.len()-1,i.1) ){
+            animation.print( printer.new_branch(last) );
+        }
+    }
+
+    fn print_skins(&self, printer:TreePrinter) {
+        println!("Skins");
+
+        for (last,(_,skin)) in self.skins.iter().clone().enumerate().map(|i| (i.0==self.skins.len()-1,i.1) ){
+            skin.print( printer.new_branch(last) );
+        }
+    }
+
+    fn print_scenes(&self, printer:TreePrinter) {
         println!("Scenes");
 
-        if self.scenes.len()>1{
-            for (_,scene) in self.scenes.iter().take(self.scenes.len()-1){
-                scene.print_tree(false);
-            }
-        }
-
-        match self.scenes.iter().last(){
-            Some((_,scene)) => scene.print_tree(true),
-            None => {},
+        for (last,(_,scene)) in self.scenes.iter().clone().enumerate().map(|i| (i.0==self.scenes.len()-1,i.1) ){
+            scene.print( printer.new_branch(last) );
         }
     }
 

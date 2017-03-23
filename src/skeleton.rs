@@ -8,6 +8,9 @@ use std::sync::Arc;
 
 use node::parse_node;
 
+use std::fmt::Display;
+use std::fmt;
+
 use Geometry;
 use Camera;
 use Document;
@@ -16,10 +19,12 @@ use Axis;
 use Editor;
 use Node;
 use Skin;
+use TreePrinter;
 
 use Matrix;
 
 pub struct Skeleton{
+    pub id:String,
     pub bones_array:Vec<Arc<Bone>>,
     pub bones:HashMap<String,Arc<Bone>>,
 }
@@ -29,21 +34,31 @@ impl Skeleton {
         root_bone_element:&Element,
         document:&mut Document,
         skins_by_id:&HashMap<String,Arc<Skin>>,
+        id:String,
         geometries:&mut HashMap<String,Node<Geometry>>,
         cameras:&mut HashMap<String,Node<Camera>>,
         skeletons:&mut HashMap<String,Node<Skeleton>>,
-    ) -> Result<Skeleton,Error>{
+    ) -> Result<Skeleton,Error> {
         let mut bones_array=Vec::new();
         let mut bones=HashMap::new();
 
-        Bone::parse(root_bone_element, document, skins_by_id, None, geometries, cameras, skeletons, &mut bones_array, &mut bones)?;
+        Bone::parse(root_bone_element, document, skins_by_id, id.clone(), None, geometries, cameras, skeletons, &mut bones_array, &mut bones)?;
 
         let skeleton=Skeleton{
+            id:id,
             bones_array:bones_array,
             bones:bones,
         };
 
         Ok( skeleton )
+    }
+
+    pub fn print(&self, printer:TreePrinter) {
+        println!("Skeleton id:\"{}\"", self.id);
+
+        if self.bones_array.len()>0 {
+            self.bones_array[0].print( printer.new_branch(true), &self.bones_array );
+        }
     }
 }
 
@@ -51,10 +66,17 @@ pub struct Bone{
     pub id:String,
     pub sid:String,
     pub name:String,
+    pub skeleton_id:String,
     pub index:usize,
     pub parent:Option<usize>,
 
     pub matrix:Matrix,
+}
+
+impl Display for Bone{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Bone name:\"{}\" of skeleton with id \"{}\"", self.name, self.skeleton_id)
+    }
 }
 
 impl Bone {
@@ -62,6 +84,7 @@ impl Bone {
         bone_element:&Element,
         document:&mut Document,
         skins_by_id:&HashMap<String,Arc<Skin>>,
+        skeleton_id:String,
         parent:Option<usize>,
         geometries:&mut HashMap<String,Node<Geometry>>,
         cameras:&mut HashMap<String,Node<Camera>>,
@@ -80,6 +103,7 @@ impl Bone {
             id:id.clone(),
             sid:sid,
             name:name,
+            skeleton_id:skeleton_id.clone(),
             index:index,
             parent:parent,
             matrix:matrix,
@@ -97,7 +121,7 @@ impl Bone {
                 let node_type=node_element.get_attribute("type")?;
 
                 if node_type.as_str()=="JOINT" {
-                    Bone::parse(node_element, document, skins_by_id, Some(index), geometries, cameras, skeletons, bones_array, bones)?;
+                    Bone::parse(node_element, document, skins_by_id, skeleton_id.clone(), Some(index), geometries, cameras, skeletons, bones_array, bones)?;
                 }else{
                     parse_node(node_element, document, skins_by_id, Some(bone.clone()), geometries, cameras, skeletons)?;
                 }
@@ -105,5 +129,26 @@ impl Bone {
         }
 
         Ok(())
+    }
+
+    pub fn print(&self, printer:TreePrinter, bones_array:&Vec<Arc<Bone>>) {
+        println!("Bone index:{} id:\"{}\" name:\"{}\"", self.index, self.id, self.name);
+
+        let mut children:Vec<&Arc<Bone>>=Vec::new();
+
+        for bone in bones_array.iter() {
+            match bone.parent {
+                Some( parent_index ) => {
+                    if parent_index==self.index {
+                        children.push(bone);
+                    }
+                },
+                None => {},
+            }
+        }
+
+        for (last,bone) in children.iter().clone().enumerate().map(|i| (i.0==children.len()-1,i.1) ){
+            bone.print( printer.new_branch(last), bones_array );
+        }
     }
 }

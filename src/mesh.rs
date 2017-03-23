@@ -9,6 +9,7 @@ use std::sync::Arc;
 use Source;
 use Asset;
 use ArrayIter;
+use TreePrinter;
 
 use source::read_sources;
 use source::select_sources;
@@ -163,14 +164,7 @@ impl Mesh{
         Ok(vertex_indices)
     }
 
-    pub fn print_tree(&self, last_geometry:bool, last_mesh:bool){
-        use print_branch;
-        use print_tab;
-
-        print_tab(false);
-        print_tab(last_geometry);
-        print_branch(last_mesh);
-
+    pub fn print(&self, printer:TreePrinter) {
         match self.material{
             Some(ref material) => {
                 println!("Mesh material:\"{}\"", material);
@@ -180,39 +174,18 @@ impl Mesh{
             },
         }
 
-        print_tab(false);
-        print_tab(last_geometry);
-        print_tab(last_mesh);
-        print_branch(false);
+        printer.new_branch(false);
         println!("Short vertex_format: {}",self.short_vertex_format);
 
-        print_tab(false);
-        print_tab(last_geometry);
-        print_tab(last_mesh);
-        print_branch(true);
-        println!("Vertex");
+        self.print_vertex_indices( printer.new_branch(true) );
+    }
 
-        if self.vertex_indices.len()>1 {
-            for (ref name,ref vertex_indices) in self.vertex_indices.iter().take(self.vertex_indices.len()-1){
-                print_tab(false);
-                print_tab(last_geometry);
-                print_tab(last_mesh);
-                print_tab(true);
-                print_branch(false);
-                println!("Vertex indices for \"{}\" source id:\"{}\"",name,vertex_indices.source.id);
-            }
-        }
+    fn print_vertex_indices(&self, printer:TreePrinter){
+        println!("Vertices");
 
-        match self.vertex_indices.iter().last(){
-            Some((ref name,ref vertex_indices)) => {
-                print_tab(false);
-                print_tab(last_geometry);
-                print_tab(last_mesh);
-                print_tab(true);
-                print_branch(true);
-                println!("Vertex indices for \"{}\" source id:\"{}\"",name,vertex_indices.source.id);
-            }
-            None => {},
+        for (last,(ref name,ref vertex_indices)) in self.vertex_indices.iter().clone().enumerate().map(|i| (i.0==self.vertex_indices.len()-1,i.1) ){
+            printer.new_branch(last);
+            println!("Vertex indices for \"{}\" source id:\"{}\"",name,vertex_indices.source.id);
         }
     }
 }

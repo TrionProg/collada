@@ -31,7 +31,10 @@ mod geometry;
 pub use geometry::Geometry;
 
 mod controller;
-pub use controller::{Controller,Skin,BoneIndices};
+pub use controller::Controller;
+
+mod skin;
+pub use skin::{Skin,BoneIndices};
 
 mod location;
 pub use location::{Position,Scale,Euler,Matrix};
@@ -48,18 +51,5 @@ pub use animation::Animation;
 mod scene;
 pub use scene::Scene;
 
-pub fn print_branch(last:bool) {
-    if last {
-        print!("└── ");
-    }else{
-        print!("├── ");
-    }
-}
-
-pub fn print_tab(last:bool){
-    if last {
-        print!("    ");
-    }else{
-        print!("│   ");
-    }
-}
+mod tree_printer;
+pub use tree_printer::TreePrinter;

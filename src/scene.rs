@@ -15,6 +15,7 @@ use Camera;
 use Geometry;
 use Skeleton;
 use Skin;
+use TreePrinter;
 
 pub struct Scene{
     pub id:String,
@@ -50,6 +51,39 @@ impl Scene{
         )
     }
 
+    pub fn print(&self, printer:TreePrinter) {
+        println!("Scene id:\"{}\" name:\"{}\"",self.id,self.name);
+
+        self.print_geometries( printer.new_branch(false) );
+        self.print_skeletons( printer.new_branch(false) );
+        self.print_cameras( printer.new_branch(true) );
+    }
+
+    fn print_geometries(&self, printer:TreePrinter) {
+        println!("Geometries");
+
+        for (last,(_,geometry)) in self.geometries.iter().clone().enumerate().map(|i| (i.0==self.geometries.len()-1,i.1) ){
+            geometry.print( printer.new_branch(last) );
+        }
+    }
+
+    fn print_skeletons(&self, printer:TreePrinter) {
+        println!("Skeletons");
+
+        for (last,(_,skeleton)) in self.skeletons.iter().clone().enumerate().map(|i| (i.0==self.skeletons.len()-1,i.1) ){
+            skeleton.print( printer.new_branch(last) );
+        }
+    }
+
+    fn print_cameras(&self, printer:TreePrinter) {
+        println!("Cameras");
+
+        for (last,(_,camera)) in self.cameras.iter().clone().enumerate().map(|i| (i.0==self.cameras.len()-1,i.1) ){
+            camera.print( printer.new_branch(last) );
+        }
+    }
+
+    /*
     pub fn print_tree(&self, last_scene:bool){
         use print_branch;
         use print_tab;
@@ -106,6 +140,7 @@ impl Scene{
             None => {},
         }
     }
+    */
 }
 
 pub fn parse_scenes(root:&Element, document:&mut Document, skins_by_id:HashMap<String,Arc<Skin>>) -> Result<(), Error>{

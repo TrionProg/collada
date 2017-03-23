@@ -9,13 +9,15 @@ use std::sync::Arc;
 use Asset;
 use Source;
 use Matrix;
+use TreePrinter;
 
 use source::read_sources;
 
 pub struct Animation{
-    animation_id:String,
+    id:String,
     bone_id:String,
     skeleton_id:String,
+    keyframes_count:usize,
     sources:HashMap<String,Arc<Source>>,
 }
 
@@ -27,6 +29,7 @@ impl Animation {
 
         let sampler_element=animation_element.get_element("sampler")?;
         let sources=Self::select_sources(&sampler_element,&all_sources)?;
+        let keyframes_count=Self::get_keyframes_count(&sources)?;
 
         let channel_element=animation_element.get_element("channel")?;
         let channel_source=channel_element.get_attribute("source")?.trim_left_matches('#');
@@ -50,12 +53,11 @@ impl Animation {
             None => channel_source.to_string(),
         };
 
-        println!("anim: {} {}",bone_id, skeleton_id);
-
         let animation=Animation{
-            animation_id:animation_id,
+            id:animation_id,
             bone_id:bone_id,
             skeleton_id:skeleton_id,
+            keyframes_count:keyframes_count,
             sources:sources,
         };
 
@@ -85,7 +87,52 @@ impl Animation {
             }
         }
 
+        if sources.len()==0 {
+            return Err( Error::Other( String::from("No sources for animation") ));
+        }
+
         Ok( sources_list )
+    }
+
+    fn get_keyframes_count(sources:&HashMap<String,Arc<Source>>) -> Result<usize,Error> {
+        let mut keyframes_count=None;
+
+        for (_,source) in sources.iter() {
+            for (layer_name, layer) in source.layers.iter() {
+                let cnt=layer.get_length();
+
+                match keyframes_count {
+                    Some( keyframes_count ) => {
+                        if cnt!=keyframes_count {
+                            return Err(Error::Other( format!("Layer \"{}\" of source with id \"{}\" has different number of keyframes then others", layer_name, source.id) ));
+                        }
+                    },
+                    None =>
+                        keyframes_count=Some(cnt),
+                }
+            }
+        }
+
+        Ok( keyframes_count.unwrap() )
+    }
+
+
+    pub fn print(&self, printer:TreePrinter) {
+        println!("Animation id:\"{}\" for bone with id \"{}\" of skeleton with id \"{}\"",self.id, self.bone_id, self.skeleton_id);
+
+        printer.new_branch(false);
+        println!("keyframes count: {}", self.keyframes_count);
+
+        self.print_sources( printer.new_branch(true) );
+    }
+
+    fn print_sources(&self, printer:TreePrinter) {
+        println!("Sources");
+
+        for (last,(source_name,source)) in self.sources.iter().clone().enumerate().map(|i| (i.0==self.sources.len()-1,i.1) ){
+            printer.new_branch(last);
+            println!("Source name:\"{}\" id:\"{}\"",source_name,source.id);
+        }
     }
 }
 
@@ -98,9 +145,9 @@ pub fn parse_animations(root:&Element, asset:&Asset) -> Result< HashMap<String,A
         if animation_element.name.as_str()=="animation" {
             let animation=Animation::parse(animation_element, asset)?;
 
-            match animations.entry(animation.animation_id.clone()){
+            match animations.entry(animation.id.clone()){
                 Entry::Occupied(_) =>
-                    return Err( Error::Other(format!("Duplicate animation with id \"{}\"",animation.animation_id)) ),
+                    return Err( Error::Other(format!("Duplicate animation with id \"{}\"",animation.id)) ),
                 Entry::Vacant(entry) => {
                     entry.insert(Arc::new(animation));
                 },

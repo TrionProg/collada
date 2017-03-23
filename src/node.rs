@@ -16,6 +16,7 @@ use Bone;
 use Skeleton;
 use Skin;
 use Controller;
+use TreePrinter;
 
 use Position;
 use Euler;
@@ -32,44 +33,26 @@ pub struct Node<T>{
 }
 
 impl Node<Geometry>{
-    pub fn print_tree(&self, last_scene:bool, last_node:bool){
-        use print_branch;
-        use print_tab;
-
-        print_tab(true);
-        print_tab(last_scene);
-        print_tab(false);
-        print_branch(last_node);
+    pub fn print(&self, printer:TreePrinter) {
         println!("Node id:\"{}\" name:\"{}\" joided to \"{}\"",self.id,self.name,self.joined.id);
-        self.controller.print();
+
+        printer.new_branch(true);
+        println!("{}", self.controller);
     }
 }
 
 impl Node<Camera>{
-    pub fn print_tree(&self, last_scene:bool, last_node:bool){
-        use print_branch;
-        use print_tab;
-
-        print_tab(true);
-        print_tab(last_scene);
-        print_tab(true);
-        print_branch(last_node);
+    pub fn print(&self, printer:TreePrinter) {
         println!("Node id:\"{}\" name:\"{}\" joided to \"{}\"",self.id,self.name,self.joined.id);
-        self.controller.print();
+
+        printer.new_branch(true);
+        println!("{}", self.controller);
     }
 }
 
 impl Node<Skeleton>{
-    pub fn print_tree(&self, last_scene:bool, last_node:bool){
-        use print_branch;
-        use print_tab;
-
-        print_tab(true);
-        print_tab(last_scene);
-        print_tab(true);
-        print_branch(last_node);
-        println!("Skeleton id:\"{}\" name:\"{}\"",self.id,self.name);
-        self.controller.print();
+    pub fn print(&self, printer:TreePrinter) {
+        println!("Node id:\"{}\" name:\"{}\" joided to \"{}\"",self.id,self.name,self.joined.id);
     }
 }
 
@@ -194,12 +177,19 @@ pub fn parse_node(
 
     for root_bone in node.children.iter(){
         if root_bone.name.as_str()=="node" && root_bone.get_attribute("type")?.as_str()=="JOINT" {
-            let skeleton=Skeleton::parse(root_bone, document, skins_by_id, geometries, cameras, skeletons)?;
+            let skeleton=Arc::new( Skeleton::parse(root_bone, document, skins_by_id, id.clone(), geometries, cameras, skeletons)? );
 
             let controller=match bone {
                 Some( bone ) => return Err(Error::Other( format!("Skeleton with id \"{}\" can not be joined to bone (id:\"{}\")", id, bone.id) )),
                 None => Controller::Model,
             };
+
+            match document.skeletons.entry(id.clone()){
+                Entry::Occupied(_) => return Err(Error::Other( format!("Duplicate skeleton node with id \"{}\"",&id) )),
+                Entry::Vacant(entry) => {
+                    entry.insert(skeleton.clone());
+                },
+            }
 
             match skeletons.entry(name.clone()){
                 Entry::Occupied(_) => return Err(Error::Other( format!("Duplicate skeleton node with name \"{}\"",&name) )),
@@ -211,7 +201,7 @@ pub fn parse_node(
                         position:position,
                         rotation:rotation,
                         scale:scale,
-                        joined:Arc::new(skeleton),
+                        joined:skeleton,
                         controller:controller,
                     }
                 );},

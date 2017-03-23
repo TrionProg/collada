@@ -89,6 +89,15 @@ impl SourceLayer{
             SourceLayer::Matrix4(_) => "matrix4",
         }
     }
+
+    pub fn get_length(&self) -> usize {
+        match *self{
+            SourceLayer::F32( ref list ) => list.len(),
+            SourceLayer::I32( ref list ) => list.len(),
+            SourceLayer::Name( ref list ) => list.len(),
+            SourceLayer::Matrix4( ref list ) => list.len(),
+        }
+    }
 }
 
 pub struct Source{
