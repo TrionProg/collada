@@ -47,7 +47,7 @@ impl Skin {
     pub fn parse(skin_element:&Element, id:String, asset:&Asset) -> Result<Self, Error> {
         let geometry_id=skin_element.get_attribute("source")?.trim_left_matches('#').to_string();
 
-        let matrix=Matrix::parse( skin_element.get_element("bind_shape_matrix")?.get_text()?, asset )?;
+        let matrix=Matrix::parse( skin_element.get_element("bind_shape_matrix")?.get_text()? )?;
 
         let all_sources=read_sources(skin_element, asset)?;
 

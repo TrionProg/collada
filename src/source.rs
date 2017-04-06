@@ -10,7 +10,12 @@ use Asset;
 use Axis;
 use Editor;
 use ArrayIter;
+
+use Location;
 use Matrix;
+use Position;
+use Quaternion;
+use Scale;
 
 #[derive(Clone, Eq, PartialEq)]
 pub enum LayerType{
@@ -23,7 +28,7 @@ pub enum LayerType{
     G,
     B,
     BoneName,
-    TransformMatrix,
+    Location,
     Weight,
     Other(String),
 }
@@ -40,7 +45,7 @@ impl LayerType{
             LayerType::G => "G",
             LayerType::B => "B",
             LayerType::BoneName => "bone_name",
-            LayerType::TransformMatrix => "transform_matrix",
+            LayerType::Location => "location",
             LayerType::Weight => "weight",
             LayerType::Other(ref s) => s.as_str(),
         }
@@ -52,7 +57,7 @@ pub enum DataType{
     F32,
     I32,
     Name,
-    Matrix4,
+    Location,
 }
 
 impl DataType{
@@ -61,13 +66,13 @@ impl DataType{
             DataType::F32 => "f32",
             DataType::I32 => "i32",
             DataType::Name => "name",
-            DataType::Matrix4 => "matrix4",
+            DataType::Location => "location",
         }
     }
 
     pub fn get_size(&self) -> usize{
         match *self{
-            DataType::Matrix4 => 16,
+            DataType::Location => 16,//from matrix 4*4
             _ => 1,
         }
     }
@@ -77,7 +82,7 @@ pub enum SourceLayer{
     F32(Vec<f32>),
     I32(Vec<i32>),
     Name(Vec<String>),
-    Matrix4(Vec<Matrix>),
+    Location(Vec<Location>),
 }
 
 impl SourceLayer{
@@ -86,7 +91,7 @@ impl SourceLayer{
             SourceLayer::F32(_) => "f32",
             SourceLayer::I32(_) => "i32",
             SourceLayer::Name(_) => "name",
-            SourceLayer::Matrix4(_) => "matrix4",
+            SourceLayer::Location(_) => "location",
         }
     }
 
@@ -95,7 +100,7 @@ impl SourceLayer{
             SourceLayer::F32( ref list ) => list.len(),
             SourceLayer::I32( ref list ) => list.len(),
             SourceLayer::Name( ref list ) => list.len(),
-            SourceLayer::Matrix4( ref list ) => list.len(),
+            SourceLayer::Location( ref list ) => list.len(),
         }
     }
 }
@@ -163,7 +168,7 @@ impl Source{
                     "G" => LayerType::G,
                     "B" => LayerType::B,
                     "JOINT" => LayerType::BoneName,
-                    "TRANSFORM" => LayerType::TransformMatrix,
+                    "TRANSFORM" => LayerType::Location,
                     "WEIGHT" => LayerType::Weight,
                     _ => LayerType::Other(String::from(param_name_str)),
                 };
@@ -174,7 +179,7 @@ impl Source{
                 let param_type=match param_data_type_str{
                     "float" => DataType::F32,
                     "name" => DataType::Name,
-                    "float4x4" => DataType::Matrix4,
+                    "float4x4" => DataType::Location,
                     _ => return Err(Error::Other( format!("Expected float,name or float4x4 but {} has been found",param_data_type_str) )),
                 };
 
@@ -264,7 +269,7 @@ impl Source{
                 DataType::F32 => SourceLayer::F32( Vec::with_capacity(accessor_count) ),
                 DataType::I32 => SourceLayer::I32( Vec::with_capacity(accessor_count) ),
                 DataType::Name => SourceLayer::Name( Vec::with_capacity(accessor_count) ),
-                DataType::Matrix4 => SourceLayer::Matrix4(  Vec::with_capacity(accessor_count) ),
+                DataType::Location => SourceLayer::Location(  Vec::with_capacity(accessor_count) ),
             };
 
             layers_data.push(layer_data);
@@ -281,13 +286,15 @@ impl Source{
                         list.push( array_iter.read_i32()? ),
                     SourceLayer::Name( ref mut list ) =>
                         list.push( String::from(array_iter.read_str()?) ),
-                    SourceLayer::Matrix4( ref mut list ) => {
+                    SourceLayer::Location( ref mut list ) => {
                         let mut mat=[0.0;16];
                         for k in 0..16 {
                             mat[k]=array_iter.read_f32()?;
                         }
 
-                        list.push( Matrix::from(mat, asset) );
+                        let location=Matrix::from(mat).to_location(asset);
+
+                        list.push( location );
                     },
                 }
             }

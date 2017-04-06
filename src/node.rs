@@ -18,16 +18,16 @@ use Skin;
 use Controller;
 use TreePrinter;
 
+use Location;
+use Matrix;
 use Position;
-use Euler;
+use Quaternion;
 use Scale;
 
 pub struct Node<T>{
     pub id:String,
     pub name:String,
-    pub position:Position,
-    pub rotation:Euler,
-    pub scale:Scale,
+    pub location:Location,
     pub joined:Arc<T>,
     pub controller:Controller,
 }
@@ -68,20 +68,24 @@ pub fn parse_node(
     let id=node.get_attribute("id")?.clone();
     let name=node.get_attribute("name")?.clone();
 
-    let position=match node.get_element("translate"){
-        Ok ( position ) => Position::parse(position.get_text()?, &document.asset)?,
-        Err ( _ ) => Position::new(0.0, 0.0, 0.0),
+    let location = match node.get_element("matrix") {
+        Ok( matrix_element ) => Matrix::parse(matrix_element.get_text()?)?.to_location(&document.asset),
+        _ => {
+            let position=match node.get_element("translate"){
+                Ok ( position ) => Position::parse(position.get_text()?, &document.asset)?,
+                Err ( _ ) => Position::new(0.0, 0.0, 0.0),
+            };
+
+            let scale=match node.get_element("scale"){
+                Ok ( scale ) => Scale::parse(scale.get_text()?, &document.asset)?,
+                Err ( _ ) => Scale::new(0.0, 0.0, 0.0),
+            };
+
+            let rotation=Quaternion::new(0.0,0.0,0.0,0.0);
+
+            Location::new(position, scale, rotation)
+        },
     };
-
-    let scale=match node.get_element("scale"){
-        Ok ( scale ) => Scale::parse(scale.get_text()?, &document.asset)?,
-        Err ( _ ) => Scale::new(0.0, 0.0, 0.0),
-    };
-
-    let rotation=Euler::parse(node, &document.asset)?;
-
-    //let matrix_str=node.get_element("matrix")?.get_text()?;
-    //let matrix=Matrix::parse(matrix_str)?;
 
     for instance in node.children.iter(){
         if instance.name.as_str()=="instance_geometry" {
@@ -98,10 +102,7 @@ pub fn parse_node(
                     Node::<Geometry>{
                         id:id,
                         name:name,
-                        //matrix:matrix,
-                        position:position,
-                        rotation:rotation,
-                        scale:scale,
+                        location:location,
                         joined:joined,
                         controller:match bone {
                             Some( bone ) => Controller::Bone( bone ),
@@ -126,9 +127,7 @@ pub fn parse_node(
                     Node::<Camera>{
                         id:id,
                         name:name,
-                        position:position,
-                        rotation:rotation,
-                        scale:scale,
+                        location:location,
                         joined:joined,
                         controller:match bone {
                             Some( bone ) => Controller::Bone( bone ),
@@ -161,10 +160,7 @@ pub fn parse_node(
                     Node::<Geometry>{
                         id:id,
                         name:name,
-                        //matrix:matrix,
-                        position:position,
-                        rotation:rotation,
-                        scale:scale,
+                        location:location,
                         joined:joined,
                         controller:Controller::Skin(skin),
                     }
@@ -198,9 +194,7 @@ pub fn parse_node(
                     Node::<Skeleton>{
                         id:id,
                         name:name,
-                        position:position,
-                        rotation:rotation,
-                        scale:scale,
+                        location:location,
                         joined:skeleton,
                         controller:controller,
                     }

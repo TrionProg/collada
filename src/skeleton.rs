@@ -21,7 +21,11 @@ use Node;
 use Skin;
 use TreePrinter;
 
+use Location;
 use Matrix;
+use Position;
+use Quaternion;
+use Scale;
 
 pub struct Skeleton{
     pub id:String,
@@ -70,7 +74,7 @@ pub struct Bone{
     pub index:usize,
     pub parent:Option<usize>,
 
-    pub matrix:Matrix,
+    pub location:Location,
 }
 
 impl Display for Bone{
@@ -97,7 +101,7 @@ impl Bone {
         let name=bone_element.get_attribute("name")?.clone();
         let index=bones_array.len();
 
-        let matrix=Matrix::parse( bone_element.get_element("matrix")?.get_text()?, &document.asset )?;
+        let location=Matrix::parse( bone_element.get_element("matrix")?.get_text()? )?.to_location(&document.asset);
 
         let bone=Arc::new( Bone{
             id:id.clone(),
@@ -106,7 +110,8 @@ impl Bone {
             skeleton_id:skeleton_id.clone(),
             index:index,
             parent:parent,
-            matrix:matrix,
+
+            location:location,
         } );
 
         bones_array.push(bone.clone());

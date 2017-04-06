@@ -37,7 +37,7 @@ mod skin;
 pub use skin::{Skin,BoneIndices};
 
 mod location;
-pub use location::{Position,Scale,Euler,Matrix};
+pub use location::{Location,Position,Scale,Quaternion,Matrix};
 
 mod node;
 pub use node::Node;

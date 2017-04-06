@@ -54,7 +54,11 @@ impl Geometry{
 }
 
 pub fn parse_geometries(root:&Element, asset:&Asset) -> Result< HashMap<String,Arc<Geometry>>, Error>{
-    let geometries_element=root.get_element("library_geometries")?;
+    let geometries_element=match root.get_element("library_geometries") {
+        Ok( geometries_element ) => geometries_element,
+        Err( _ ) => return Ok( HashMap::new() ),
+    };
+    
     let mut geometries=HashMap::new();
 
     let mut mesh_id=0;

@@ -8,7 +8,6 @@ use std::sync::Arc;
 
 use Asset;
 use Source;
-use Matrix;
 use TreePrinter;
 
 use source::read_sources;
@@ -137,7 +136,10 @@ impl Animation {
 }
 
 pub fn parse_animations(root:&Element, asset:&Asset) -> Result< HashMap<String,Arc<Animation> >, Error>{
-    let animations_element=root.get_element("library_animations")?;
+    let animations_element=match root.get_element("library_animations") {
+        Ok( animations_element ) => animations_element,
+        Err( _ ) => return Ok( HashMap::new() ),
+    };
 
     let mut animations:HashMap<String,Arc<Animation> >=HashMap::new();
 
