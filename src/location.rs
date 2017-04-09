@@ -207,7 +207,6 @@ impl Quaternion {
 
         if asset.editor==Editor::Blender {
             quat.x=-quat.x;
-            quat.z=-quat.z;
         }
 
         quat

@@ -12,6 +12,7 @@ use Matrix;
 use ArrayIter;
 use Bone;
 use TreePrinter;
+use Location;
 
 use source::read_sources;
 use source::select_sources;
@@ -27,6 +28,7 @@ pub struct BonesPerVertex{
 pub struct Skin {
     pub id:String,
     pub geometry_id:String,
+    pub bind_location:Location,
     pub sources:Vec<(String,Arc<Source>)>,
     pub additional_sources:HashMap<String,Arc<Source>>,
     pub bone_indices:HashMap<String,Arc<BoneIndices>>,
@@ -47,7 +49,7 @@ impl Skin {
     pub fn parse(skin_element:&Element, id:String, asset:&Asset) -> Result<Self, Error> {
         let geometry_id=skin_element.get_attribute("source")?.trim_left_matches('#').to_string();
 
-        let matrix=Matrix::parse( skin_element.get_element("bind_shape_matrix")?.get_text()? )?;
+        let bind_location=Matrix::parse(skin_element.get_element("bind_shape_matrix")?.get_text()?)?.to_location(asset);
 
         let all_sources=read_sources(skin_element, asset)?;
 
@@ -65,6 +67,7 @@ impl Skin {
         let skin=Skin{
             id:id,
             geometry_id:geometry_id,
+            bind_location:bind_location,
             sources:sources,
             additional_sources:additional_sources,
             bone_indices:bone_indices,

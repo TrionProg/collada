@@ -35,7 +35,7 @@ pub struct Skeleton{
 
 impl Skeleton {
     pub fn parse(
-        root_bone_element:&Element,
+        skeleton_element:&Element,
         document:&mut Document,
         skins_by_id:&HashMap<String,Arc<Skin>>,
         id:String,
@@ -46,7 +46,17 @@ impl Skeleton {
         let mut bones_array=Vec::new();
         let mut bones=HashMap::new();
 
-        Bone::parse(root_bone_element, document, skins_by_id, id.clone(), None, geometries, cameras, skeletons, &mut bones_array, &mut bones)?;
+        for node_element in skeleton_element.children.iter(){
+            if node_element.name.as_str()=="node" {
+                let node_type=node_element.get_attribute("type")?;
+
+                if node_type.as_str()=="JOINT" {
+                    Bone::parse(node_element, document, skins_by_id, id.clone(), None, geometries, cameras, skeletons, &mut bones_array, &mut bones)?;
+                }
+            }
+        }
+
+        //Bone::parse(root_bone_element, document, skins_by_id, id.clone(), None, geometries, cameras, skeletons, &mut bones_array, &mut bones)?;
 
         let skeleton=Skeleton{
             id:id,
