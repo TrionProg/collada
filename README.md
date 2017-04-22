@@ -27,27 +27,30 @@ Example
 For example we want to get Y coordinate of second vertex of Polygon 3 of object named "body". Then we should write:
 
 ```rust
-let document=match collada::Document::parse(&Path::new("a2.dae")){
-    Ok(d) => d,
-    Err(e) => panic!("{}",e),
-};
+fn example(){
+    let document=match collada::Document::parse(&Path::new("scene.dae")){
+        Ok(d) => d,
+        Err(e) => panic!("{}",e),
+    };
 
-let scene=document.scenes.get("Scene").unwrap();
-let node=scene.geometries.get("body").unwrap();
-let geometry=&node.joined;
-let mesh=&geometry.meshes[0];
-println!("{}",mesh.full_semantics);
-let polygon=&mesh.polygons[3];
-let position=mesh.vertex_layers.get("VERTEX").unwrap();
-let y_source_layer=position.source.layers.get("Y").unwrap();
-let source_data=match *y_source_layer {
-    collada::SourceLayer::Float(ref data) => data,
-    _ => panic!("we expect only float"),
-};
-let vertex_index=polygon.first_vertex_index+1;
-println!("Y coord is {}",source_data[position.indices[vertex_index]]);
+    document.print();
 
-document.print_tree();//print document tree
+    let scene=document.scenes.get("Scene").unwrap();
+    let node=scene.geometries.get("Cube").unwrap();
+    let geometry=&node.joined;
+    let mesh=&geometry.meshes[0];
+    println!("{}",mesh.vertex_format);
+    let polygon=&mesh.polygons[3];
+    let position=mesh.vertex_indices.get("VERTEX").unwrap();
+    let y_source_layer=position.source.layers.get("Y").unwrap();
+    let source_data=match *y_source_layer {
+        collada::SourceLayer::F32(ref data) => data,
+        _ => panic!("we expect only f32"),
+    };
+    let vertex_index=polygon.first_vertex_index+1;
+    println!("Y coord is {}",source_data[position.indices[vertex_index]]);
+
+}
 ```
 
 Document Tree
@@ -56,54 +59,109 @@ Document Tree
 ```
 Document
 ├── Geometries
-│   ├── Geometry id:"Cylinder_003-mesh" name:"Cylinder.003"
-│   │   ├── Mesh material:"tex1-material"
-│   │   │   ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(U,V) &(R,G,B)
-│   │   │   └── Vertex
-│   │   │       ├── Vertex indices for "NORMAL" source id:"Cylinder_003-mesh-normals"
-│   │   │       ├── Vertex indices for "TEXCOORD" source id:"Cylinder_003-mesh-map-0"
-│   │   │       ├── Vertex indices for "COLOR" source id:"Cylinder_003-mesh-colors-Col"
-│   │   │       └── Vertex indices for "VERTEX" source id:"Cylinder_003-mesh-positions"
-│   │   └── Mesh material:"tex2-material"
-│   │       ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(U,V) &(R,G,B)
-│   │       └── Vertex
-│   │           ├── Vertex indices for "NORMAL" source id:"Cylinder_003-mesh-normals"
-│   │           ├── Vertex indices for "TEXCOORD" source id:"Cylinder_003-mesh-map-0"
-│   │           ├── Vertex indices for "COLOR" source id:"Cylinder_003-mesh-colors-Col"
-│   │           └── Vertex indices for "VERTEX" source id:"Cylinder_003-mesh-positions"
-│   ├── Geometry id:"Cylinder_008-mesh" name:"Cylinder.008"
-│   │   └── Mesh material:"Material_001-material"
-│   │       ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(U,V)
-│   │       └── Vertex
-│   │           ├── Vertex indices for "NORMAL" source id:"Cylinder_008-mesh-normals"
-│   │           ├── Vertex indices for "TEXCOORD" source id:"Cylinder_008-mesh-map-0"
-│   │           └── Vertex indices for "VERTEX" source id:"Cylinder_008-mesh-positions"
-│   ├── Geometry id:"Cylinder_004-mesh" name:"Cylinder.004"
-│   │   └── Mesh material:"Material-material"
-│   │       ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(U,V)
-│   │       └── Vertex
-│   │           ├── Vertex indices for "NORMAL" source id:"Cylinder_004-mesh-normals"
-│   │           ├── Vertex indices for "TEXCOORD" source id:"Cylinder_004-mesh-map-0"
-│   │           └── Vertex indices for "VERTEX" source id:"Cylinder_004-mesh-positions"
-│   └── Geometry id:"Cylinder_007-mesh" name:"Cylinder.007"
-│       └── Mesh material:"tex2-material"
-│           ├── Short semantics: &(X,Y,Z) &(X,Y,Z) &(U,V)
-│           └── Vertex
-│               ├── Vertex indices for "NORMAL" source id:"Cylinder_007-mesh-normals"
-│               ├── Vertex indices for "TEXCOORD" source id:"Cylinder_007-mesh-map-0"
-│               └── Vertex indices for "VERTEX" source id:"Cylinder_007-mesh-positions"
+│   ├── Geometry id:"Cube-mesh" name:"Cube"
+│   │   └── Meshes
+│   │       └── Mesh no material
+│   │           ├── Short vertex_format: &(X,Y,Z) &(X,Y,Z)
+│   │           └── Vertices
+│   │               ├── Vertex indices for "NORMAL" source id:"Cube-mesh-normals"
+│   │               └── Vertex indices for "VERTEX" source id:"Cube-mesh-positions"
+│   ├── Geometry id:"Cylinder-mesh" name:"Cylinder"
+│   │   └── Meshes
+│   │       └── Mesh no material
+│   │           ├── Short vertex_format: &(X,Y,Z) &(X,Y,Z) &(U,V)
+│   │           └── Vertices
+│   │               ├── Vertex indices for "VERTEX" source id:"Cylinder-mesh-positions"
+│   │               ├── Vertex indices for "TEXCOORD" source id:"Cylinder-mesh-map-0"
+│   │               └── Vertex indices for "NORMAL" source id:"Cylinder-mesh-normals"
+│   └── Geometry id:"Cube_001-mesh" name:"Cube.001"
+│       └── Meshes
+│           └── Mesh no material
+│               ├── Short vertex_format: &(X,Y,Z) &(X,Y,Z)
+│               └── Vertices
+│                   ├── Vertex indices for "NORMAL" source id:"Cube_001-mesh-normals"
+│                   └── Vertex indices for "VERTEX" source id:"Cube_001-mesh-positions"
+├── Skeletons
+│   └── Skeleton id:"Guy"
+│       └── Bone index:0 id:"Position" name:"Position"
+│           └── Bone index:1 id:"Torse" name:"Torse"
+│               ├── Bone index:2 id:"Hand_r" name:"Hand.r"
+│               │   └── Bone index:3 id:"Hand_r_2" name:"Hand.r.2"
+│               ├── Bone index:4 id:"Hand_l" name:"Hand.l"
+│               │   └── Bone index:5 id:"Hand_l_2" name:"Hand.l.2"
+│               └── Bone index:6 id:"Neck" name:"Neck"
+│                   └── Bone index:7 id:"Head" name:"Head"
+├── Animations
+│   ├── Animation id:"Guy_Hand_l_pose_matrix" for bone with id "Hand_l" of skeleton with id "Guy"
+│   │   ├── keyframes count: 17
+│   │   └── Sources
+│   │       ├── Source name:"OUTPUT" id:"Guy_Hand_l_pose_matrix-output"
+│   │       ├── Source name:"INPUT" id:"Guy_Hand_l_pose_matrix-input"
+│   │       └── Source name:"INTERPOLATION" id:"Guy_Hand_l_pose_matrix-interpolation"
+│   ├── Animation id:"Guy_Neck_pose_matrix" for bone with id "Neck" of skeleton with id "Guy"
+│   │   ├── keyframes count: 17
+│   │   └── Sources
+│   │       ├── Source name:"INPUT" id:"Guy_Neck_pose_matrix-input"
+│   │       ├── Source name:"OUTPUT" id:"Guy_Neck_pose_matrix-output"
+│   │       └── Source name:"INTERPOLATION" id:"Guy_Neck_pose_matrix-interpolation"
+│   ├── Animation id:"Guy_Head_pose_matrix" for bone with id "Head" of skeleton with id "Guy"
+│   │   ├── keyframes count: 17
+│   │   └── Sources
+│   │       ├── Source name:"INPUT" id:"Guy_Head_pose_matrix-input"
+│   │       ├── Source name:"INTERPOLATION" id:"Guy_Head_pose_matrix-interpolation"
+│   │       └── Source name:"OUTPUT" id:"Guy_Head_pose_matrix-output"
+│   ├── Animation id:"Guy_Hand_r_2_pose_matrix" for bone with id "Hand_r_2" of skeleton with id "Guy"
+│   │   ├── keyframes count: 17
+│   │   └── Sources
+│   │       ├── Source name:"INPUT" id:"Guy_Hand_r_2_pose_matrix-input"
+│   │       ├── Source name:"OUTPUT" id:"Guy_Hand_r_2_pose_matrix-output"
+│   │       └── Source name:"INTERPOLATION" id:"Guy_Hand_r_2_pose_matrix-interpolation"
+│   ├── Animation id:"Guy_Position_pose_matrix" for bone with id "Position" of skeleton with id "Guy"
+│   │   ├── keyframes count: 17
+│   │   └── Sources
+│   │       ├── Source name:"OUTPUT" id:"Guy_Position_pose_matrix-output"
+│   │       ├── Source name:"INTERPOLATION" id:"Guy_Position_pose_matrix-interpolation"
+│   │       └── Source name:"INPUT" id:"Guy_Position_pose_matrix-input"
+│   ├── Animation id:"Guy_Hand_l_2_pose_matrix" for bone with id "Hand_l_2" of skeleton with id "Guy"
+│   │   ├── keyframes count: 17
+│   │   └── Sources
+│   │       ├── Source name:"INTERPOLATION" id:"Guy_Hand_l_2_pose_matrix-interpolation"
+│   │       ├── Source name:"INPUT" id:"Guy_Hand_l_2_pose_matrix-input"
+│   │       └── Source name:"OUTPUT" id:"Guy_Hand_l_2_pose_matrix-output"
+│   ├── Animation id:"Guy_Hand_r_pose_matrix" for bone with id "Hand_r" of skeleton with id "Guy"
+│   │   ├── keyframes count: 17
+│   │   └── Sources
+│   │       ├── Source name:"INTERPOLATION" id:"Guy_Hand_r_pose_matrix-interpolation"
+│   │       ├── Source name:"INPUT" id:"Guy_Hand_r_pose_matrix-input"
+│   │       └── Source name:"OUTPUT" id:"Guy_Hand_r_pose_matrix-output"
+│   └── Animation id:"Guy_Torse_pose_matrix" for bone with id "Torse" of skeleton with id "Guy"
+│       ├── keyframes count: 17
+│       └── Sources
+│           ├── Source name:"INTERPOLATION" id:"Guy_Torse_pose_matrix-interpolation"
+│           ├── Source name:"INPUT" id:"Guy_Torse_pose_matrix-input"
+│           └── Source name:"OUTPUT" id:"Guy_Torse_pose_matrix-output"
+├── Skins
+│   └── Skin id:"Guy_Cube-skin" for geometry with id "Cube_001-mesh"
+│       ├── Additional sources
+│       │   ├── Source name:"JOINT" id:"Guy_Cube-skin-joints"
+│       │   └── Source name:"INV_BIND_MATRIX" id:"Guy_Cube-skin-bind_poses"
+│       └── Bones
+│           ├── Bone indices for "JOINT" source id:"Guy_Cube-skin-joints"
+│           └── Bone indices for "WEIGHT" source id:"Guy_Cube-skin-weights"
 └── Scenes
     └── Scene id:"Scene" name:"Scene"
         ├── Geometries
-        │   ├── Node id:"WFR" name:"WFR" joided to "Cylinder_007-mesh"
-        │   ├── Node id:"WFR_003" name:"WFR_003" joided to "Cylinder_007-mesh"
-        │   ├── Node id:"WFR_002" name:"WFR_002" joided to "Cylinder_007-mesh"
-        │   ├── Node id:"body" name:"body" joided to "Cylinder_003-mesh"
-        │   ├── Node id:"Cylinder_003" name:"Cylinder_003" joided to "Cylinder_004-mesh"
-        │   ├── Node id:"Cylinder_000" name:"Cylinder_000" joided to "Cylinder_008-mesh"
-        │   └── Node id:"WFR_001" name:"WFR_001" joided to "Cylinder_007-mesh"
+        │   ├── Node id:"House" name:"House" joided to "Cube-mesh"
+        │   │   └── Controller: model positions
+        │   ├── Node id:"Culumn" name:"Culumn" joided to "Cylinder-mesh"
+        │   │   └── Controller: model positions
+        │   └── Node id:"Cube" name:"Cube" joided to "Cube_001-mesh"
+        │       └── Controller: Skin id:"Guy_Cube-skin" for geometry with id "Cube_001-mesh"
+        ├── Skeletons
+        │   └── Node id:"Guy" name:"Guy" joided to "Guy"
         └── Cameras
             └── Node id:"Camera" name:"Camera" joided to "Camera-camera"
+                └── Controller: model positions
 ```
 
 License

@@ -28,6 +28,8 @@ pub struct BonesPerVertex{
 pub struct Skin {
     pub id:String,
     pub geometry_id:String,
+    pub skeleton_id:String,
+    pub skeleton_name:String,
     pub bind_location:Location,
     pub sources:Vec<(String,Arc<Source>)>,
     pub additional_sources:HashMap<String,Arc<Source>>,
@@ -46,7 +48,7 @@ impl Display for Skin{
 }
 
 impl Skin {
-    pub fn parse(skin_element:&Element, id:String, asset:&Asset) -> Result<Self, Error> {
+    pub fn parse(skin_element:&Element, id:String, skeleton_name:String, asset:&Asset) -> Result<Self, Error> {
         let geometry_id=skin_element.get_attribute("source")?.trim_left_matches('#').to_string();
 
         let bind_location=Matrix::parse(skin_element.get_element("bind_shape_matrix")?.get_text()?)?.to_location(asset);
@@ -64,9 +66,13 @@ impl Skin {
         let (bones_count_per_vertex,bones_indices_count)=Self::read_bones_count_per_vertex(&vertex_weight_element)?;
         let bone_indices=Self::read_bone_indices(&vertex_weight_element, bones_indices_count, &sources)?;
 
+        let skeleton_id=skeleton_name.replace(".","_");
+
         let skin=Skin{
             id:id,
             geometry_id:geometry_id,
+            skeleton_id:skeleton_id,
+            skeleton_name:skeleton_name,
             bind_location:bind_location,
             sources:sources,
             additional_sources:additional_sources,

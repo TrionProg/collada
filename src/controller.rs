@@ -14,6 +14,7 @@ use Asset;
 use Bone;
 use Skin;
 
+#[derive(Clone)]
 pub enum Controller{
     Model,
     Bone(Arc<Bone>),
@@ -39,10 +40,11 @@ pub fn parse_controllers(root:&Element, asset:&Asset) -> Result< (HashMap<String
     for controller_element in controllers_element.children.iter(){
         if controller_element.name.as_str()=="controller" {
             let controller_id=controller_element.get_attribute("id")?.clone();
+            let controller_name=controller_element.get_attribute("name")?.clone();
 
             for skin_element in controller_element.children.iter() {
                 if skin_element.name.as_str()=="skin" {
-                    let skin=Arc::new( Skin::parse(skin_element, controller_id, asset)? );
+                    let skin=Arc::new( Skin::parse(skin_element, controller_id, controller_name, asset)? );
 
                     match skins_by_id.entry(skin.id.clone()){
                         Entry::Occupied(_) =>

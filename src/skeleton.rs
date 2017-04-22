@@ -29,6 +29,7 @@ use Scale;
 
 pub struct Skeleton{
     pub id:String,
+    pub location:Location,
     pub bones_array:Vec<Arc<Bone>>,
     pub bones:HashMap<String,Arc<Bone>>,
 }
@@ -39,6 +40,7 @@ impl Skeleton {
         document:&mut Document,
         skins_by_id:&HashMap<String,Arc<Skin>>,
         id:String,
+        location:Location,
         geometries:&mut HashMap<String,Node<Geometry>>,
         cameras:&mut HashMap<String,Node<Camera>>,
         skeletons:&mut HashMap<String,Node<Skeleton>>,
@@ -60,6 +62,7 @@ impl Skeleton {
 
         let skeleton=Skeleton{
             id:id,
+            location:location,
             bones_array:bones_array,
             bones:bones,
         };

@@ -6,6 +6,7 @@ use Asset;
 use Axis;
 use Editor;
 
+#[derive(Clone)]
 pub struct Position{
     pub x:f32,
     pub y:f32,
@@ -59,6 +60,7 @@ impl Position{
     }
 }
 
+#[derive(Clone)]
 pub struct Scale{
     pub x:f32,
     pub y:f32,
@@ -113,6 +115,7 @@ impl Scale{
     }
 }
 
+#[derive(Clone)]
 pub struct Euler{
     pub pitch:f32,
     pub yaw:f32,
@@ -181,6 +184,7 @@ impl Euler {
 
 }
 
+#[derive(Clone)]
 pub struct Quaternion{
     pub x:f32,
     pub y:f32,
@@ -213,6 +217,7 @@ impl Quaternion {
     }
 }
 
+#[derive(Clone)]
 pub struct Matrix{
     pub mat:[f32;16],
 }
@@ -306,7 +311,7 @@ impl Matrix{
 
 }
 
-
+#[derive(Clone)]
 pub struct Location {
     pub position:Position,
     pub scale:Scale,

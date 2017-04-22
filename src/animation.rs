@@ -13,11 +13,11 @@ use TreePrinter;
 use source::read_sources;
 
 pub struct Animation{
-    id:String,
-    bone_id:String,
-    skeleton_id:String,
-    keyframes_count:usize,
-    sources:HashMap<String,Arc<Source>>,
+    pub id:String,
+    pub bone_id:String,
+    pub skeleton_id:String,
+    pub keyframes_count:usize,
+    pub sources:HashMap<String,Arc<Source>>,
 }
 
 impl Animation {

@@ -173,7 +173,7 @@ pub fn parse_node(
 
     for root_bone in node.children.iter(){
         if root_bone.name.as_str()=="node" && root_bone.get_attribute("type")?.as_str()=="JOINT" { //This is skeleton
-            let skeleton=Arc::new( Skeleton::parse(node, document, skins_by_id, id.clone(), geometries, cameras, skeletons)? );
+            let skeleton=Arc::new( Skeleton::parse(node, document, skins_by_id, id.clone(), location.clone(), geometries, cameras, skeletons)? );
 
             let controller=match bone {
                 Some( bone ) => return Err(Error::Other( format!("Skeleton with id \"{}\" can not be joined to bone (id:\"{}\")", id, bone.id) )),

@@ -4,15 +4,15 @@ use std::path::Path;
 
 #[test]
 fn example(){
-    let document=match collada::Document::parse(&Path::new("a2.dae")){
+    let document=match collada::Document::parse(&Path::new("scene.dae")){
         Ok(d) => d,
         Err(e) => panic!("{}",e),
     };
 
-    document.print_tree();
+    document.print();
 
     let scene=document.scenes.get("Scene").unwrap();
-    let node=scene.geometries.get("body").unwrap();
+    let node=scene.geometries.get("Cube").unwrap();
     let geometry=&node.joined;
     let mesh=&geometry.meshes[0];
     println!("{}",mesh.vertex_format);
