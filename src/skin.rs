@@ -33,6 +33,7 @@ pub struct Skin {
     pub bind_location:Location,
     pub sources:Vec<(String,Arc<Source>)>,
     pub additional_sources:HashMap<String,Arc<Source>>,
+    pub bones_count_per_vertex:Vec<BonesPerVertex>,
     pub bone_indices:HashMap<String,Arc<BoneIndices>>,
 }
 
@@ -76,6 +77,7 @@ impl Skin {
             bind_location:bind_location,
             sources:sources,
             additional_sources:additional_sources,
+            bones_count_per_vertex:bones_count_per_vertex,
             bone_indices:bone_indices,
         };
 
