@@ -202,6 +202,21 @@ impl Quaternion {
         }
     }
 
+    pub fn magnitude(&self) -> f32 {
+        (self.w.powi(2)+self.x.powi(2)+self.y.powi(2)+self.z.powi(2)).sqrt()
+    }
+
+    pub fn normalize(&self) -> Quaternion {
+        let mag=self.magnitude();
+
+        Quaternion::new(
+            self.x/mag,
+            self.y/mag,
+            self.z/mag,
+            self.w/mag
+        )
+    }
+
     pub fn with_asset(x:f32,y:f32,z:f32,w:f32,asset:&Asset) -> Self{
         let mut quat = match asset.up_axis {
             Axis::X => Quaternion::new(y,x,z,w),//unknown
@@ -267,7 +282,7 @@ impl Matrix{
             let y = ( mat[2] - mat[8] ) * s;
             let z = ( mat[4] - mat[1] ) * s;
 
-            Quaternion::with_asset(x, y, z, w, asset)
+            Quaternion::with_asset(x, y, z, w, asset).normalize()
         }else if mat[0]>mat[5] && mat[0]>mat[10] {
             let s = (( 1.0 + mat[0] - mat[5] - mat[10] ) * 2.0).sqrt();
             let x = 0.5 / s;
@@ -275,7 +290,7 @@ impl Matrix{
             let z = (mat[2] + mat[8] ) / s;
             let w = (mat[6] + mat[9] ) / s;
 
-            Quaternion::with_asset(x, y, z, w, asset)
+            Quaternion::with_asset(x, y, z, w, asset).normalize()
         }else if mat[5]>mat[0] && mat[5]>mat[10] {
             let s = (( 1.0 + mat[5] - mat[0] - mat[10] ) * 2.0).sqrt();
             let x = (mat[1] + mat[4] ) / s;
@@ -283,7 +298,7 @@ impl Matrix{
             let z = (mat[6] + mat[9] ) / s;
             let w = (mat[2] + mat[8] ) / s;
 
-            Quaternion::with_asset(x, y, z, w, asset)
+            Quaternion::with_asset(x, y, z, w, asset).normalize()
         }else{
             let s = (( 1.0 + mat[10] - mat[0] - mat[5] ) * 2.0).sqrt();
             let x = (mat[2] + mat[8] ) / s;
@@ -291,7 +306,7 @@ impl Matrix{
             let z = 0.5 / s;
             let w = (mat[1] + mat[4] ) / s;
 
-            Quaternion::with_asset(x, y, z, w, asset)
+            Quaternion::with_asset(x, y, z, w, asset).normalize()
         }
     }
 
