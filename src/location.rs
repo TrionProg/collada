@@ -1,3 +1,4 @@
+use std;
 use Error;
 use XMLElement;
 use xmltree::Element;
@@ -105,83 +106,12 @@ impl Scale{
             return Err(Error::Other( format!("Only {} elements of scale have been read, expected 3", count) ));
         }
 
-        let scale = match asset.up_axis {
-            Axis::X => Scale::new(values[1],values[0],values[2]),//unknown
-            Axis::Y => Scale::new(values[0],values[1],values[2]),//standard
-            Axis::Z => Scale::new(values[0],values[2],values[1]),//blender
-        };
+        let scale_x=(values[0]*100.0).round()/100.0;
+        let scale_y=(values[1]*100.0).round()/100.0;
+        let scale_z=(values[2]*100.0).round()/100.0;
 
-        Ok( Scale::with_asset(values[0], values[1], values[2], asset) )
+        Ok( Scale::with_asset(scale_x, scale_y, scale_z, asset) )
     }
-}
-
-#[derive(Clone)]
-pub struct Euler{
-    pub pitch:f32,
-    pub yaw:f32,
-    pub roll:f32,
-}
-
-impl Euler {
-    pub fn new(x:f32,y:f32,z:f32) -> Self{
-        Euler{
-            pitch:x,
-            yaw:y,
-            roll:z,
-        }
-    }
-
-    pub fn with_asset(x:f32,y:f32,z:f32,asset:&Asset) -> Self{
-        let mut euler = match asset.up_axis {
-            Axis::X => Euler::new(y,x,z),//unknown
-            Axis::Y => Euler::new(x,y,z),//standard
-            Axis::Z => Euler::new(x,z,y),//blender
-        };
-
-        if asset.editor==Editor::Blender {
-            euler.yaw=-euler.yaw;
-        }
-
-        euler
-    }
-
-    fn parse_angle(text:&String, name:&'static str) -> Result<f32,Error> {
-        let value_str=match text.split(' ').filter(|v|*v!="").nth(3){
-            Some( vs ) => vs,
-            None => return Err(Error::Other( format!("{} does not contains angle in digress",name))),
-        };
-
-        let angle=match value_str.parse::<f32>(){
-            Ok ( v ) => v,
-            Err( _ ) => return Err(Error::ParseFloatError( String::from(name), String::from(value_str) ) ),
-        };
-
-        Ok(angle)
-    }
-
-    pub fn parse(node:&Element, asset:&Asset) -> Result<Self,Error>{
-        let mut rotation_x=0.0;
-        let mut rotation_y=0.0;
-        let mut rotation_z=0.0;
-
-        for node_element in node.children.iter(){
-            if node_element.name.as_str()=="rotate" {
-                let sid=node_element.get_attribute("sid")?;
-
-                match sid.as_str() {
-                    "rotationZ" => rotation_z=Self::parse_angle(node_element.get_text()?,"rotationZ")?,
-                    "rotationY" => rotation_y=Self::parse_angle(node_element.get_text()?,"rotationY")?,
-                    "rotationX" => rotation_x=Self::parse_angle(node_element.get_text()?,"rotationX")?,
-                    _ => return Err( Error::Other(format!("Unknown sid of rotation: \"{}\"",sid)) ),
-                }
-            }
-        }
-
-        Ok( Euler::with_asset(rotation_x, rotation_y, rotation_z, asset) )
-    }
-
-    //pub fn to_quat(&self) -> Quaternion {
-
 }
 
 #[derive(Clone)]
@@ -200,6 +130,39 @@ impl Quaternion {
             z:z,
             w:w,
         }
+    }
+
+    pub fn parse_angles(node:&Element,asset:&Asset) -> Result<Self,Error> {
+        let mut rotation=Quaternion::new(0.0,0.0,0.0,1.0);
+
+        for element in node.children.iter(){
+            if element.name.as_str()=="rotate" {
+                let mut values=[0.0;4];
+                let mut count=0;
+
+                let text=element.get_text()?;
+
+                for (i,v) in text.split(' ').filter(|v|*v!="").take(4).enumerate(){
+                    match v.parse::<f32>(){
+                        Ok ( v ) => values[i]=v,
+                        Err( _ ) => return Err(Error::ParseFloatError( String::from("scale"), String::from(v) ) ),
+                    }
+
+                    count+=1;
+                }
+
+                //check
+                if count!=4 {
+                    return Err(Error::Other( format!("Only {} elements of scale have been read, expected 4", count) ));
+                }
+
+                let quat=Quaternion::with_axis_angle_and_asset(values[0],values[1],values[2],values[3],asset);
+
+                rotation=rotation*quat;
+            }
+        }
+
+        Ok(rotation)
     }
 
     pub fn magnitude(&self) -> f32 {
@@ -229,6 +192,30 @@ impl Quaternion {
         }
 
         quat
+    }
+
+    pub fn with_axis_angle_and_asset(x:f32,y:f32,z:f32,a:f32,asset:&Asset) -> Self {
+        let angle=a/(180.0/3.14);
+
+        let sin_a = (angle / 2.0).sin();
+        let cos_a = (angle / 2.0).cos();
+
+        let quat=Quaternion::with_asset(x * sin_a, y * sin_a, z * sin_a, cos_a, asset);
+
+        quat.normalize()
+    }
+}
+
+impl std::ops::Mul for Quaternion {
+    type Output = Self;
+
+    fn mul(self, other: Quaternion) -> Self {
+        let w = self.w * other.w - self.x * other.x - self.y * other.y - self.z * other.z;
+        let x = self.w * other.x + self.x * other.w + self.y * other.z - self.z * other.y;
+        let y = self.w * other.y - self.x * other.z + self.y * other.w + self.z * other.x;
+        let z = self.w * other.z + self.x * other.y - self.y * other.x + self.z * other.w;
+
+        Quaternion::new(x,y,z,w).normalize()
     }
 }
 

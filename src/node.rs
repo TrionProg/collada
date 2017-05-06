@@ -81,7 +81,7 @@ pub fn parse_node(
                 Err ( _ ) => Scale::new(0.0, 0.0, 0.0),
             };
 
-            let rotation=Quaternion::new(0.0,0.0,0.0,0.0);
+            let rotation=Quaternion::parse_angles(node, &document.asset)?;
 
             Location::new(position, scale, rotation)
         },
